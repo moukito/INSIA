@@ -6,7 +6,12 @@ client = OpenAI()
 
 # 1. Simulated tools
 
-
+# Créer une base de recherche des formations INSA XXXX
+# Demander les anciens pour faire un petit résumé autre que les matières / voir excel GET
+# Demander à l'utilisateur un peu ses attirances et ce qui le repousse
+# Essayer d'en tirer un profil utilisateur
+# Créer un questionnaire à partir de cette "BDD" + affiner le profil
+# Afficher un classement final département/utilisateur, affinité, pourquoi et comment
 
 # 2. Payload shell
 
