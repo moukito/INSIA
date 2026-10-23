@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Iterable
+from pathlib import Path
 
 from fastapi.testclient import TestClient
+from icalendar import Calendar
 
 from app.api.routes.calendar import get_repository
 from app.main import app
@@ -120,6 +122,50 @@ def test_parse_ics_normalizes_event_fields() -> None:
     assert event.title == "INSA-MATH / Lecture / Room / Algebra"
     assert event.location == "Room 101"
     assert event.start_at.tzinfo == dt.timezone.utc
+
+
+def test_all_ics_fixtures_import_every_supported_event_field() -> None:
+    fixture_dir = Path(__file__).parents[2] / "docs"
+    fixture_paths = sorted(fixture_dir.glob("*.ics")) + sorted(fixture_dir.glob("*.ical"))
+
+    assert fixture_paths, "Expected calendar fixtures in docs/"
+
+    for fixture_path in fixture_paths:
+        data = fixture_path.read_bytes()
+        source_key = fixture_path.stem
+        imported = parse_ics(data, owner_id=42, source_key=source_key)
+        imported_events = [
+            event for course_events in imported.values() for event in course_events
+        ]
+        source_events = list(Calendar.from_ical(data).walk("VEVENT"))
+
+        assert len(imported_events) == len(source_events), fixture_path.name
+        assert sum(len(events) for events in imported.values()) == len(source_events)
+
+        imported_by_uid = {event.uid: event for event in imported_events}
+        assert len(imported_by_uid) == len(imported_events), fixture_path.name
+
+        for source_event in source_events:
+            uid = str(source_event["uid"])
+            event = imported_by_uid[uid]
+            start = source_event["dtstart"].dt
+            end = source_event["dtend"].dt
+            expected_start = start.replace(tzinfo=dt.timezone.utc) if start.tzinfo is None else start.astimezone(dt.timezone.utc)
+            expected_end = end.replace(tzinfo=dt.timezone.utc) if end.tzinfo is None else end.astimezone(dt.timezone.utc)
+
+            assert event.owner_id == 42
+            assert event.source_key == source_key
+            assert event.uid == uid
+            assert event.title == str(source_event["summary"])
+            assert event.description == str(source_event.get("description", ""))
+            assert event.start_at == expected_start
+            assert event.end_at == expected_end
+
+            source_location = str(source_event.get("location", ""))
+            expected_location = source_location.split("-", 1)[-1].strip() if source_location else ""
+            assert event.location == expected_location
+            assert event.course in imported
+            assert event in imported[event.course]
 
 
 def test_service_rejects_invalid_event_period() -> None:
