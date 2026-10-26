@@ -8,10 +8,10 @@ from fastapi.testclient import TestClient
 from icalendar import Calendar
 
 from app.api.routes.calendar import get_repository
+from app.integrations.ics_importer import parse_ics
 from app.main import app
 from app.models import Event
 from app.services import CalendarService
-from app.integrations.ics_importer import parse_ics
 
 
 class InMemoryEventRepository:
@@ -99,36 +99,100 @@ class InMemoryEventRepository:
         return added, changed, removed
 
 
-ICS = b"""BEGIN:VCALENDAR
+ICS_ADE = """BEGIN:VCALENDAR
+METHOD:REQUEST
+PRODID:-//ADE/version 6.0
 VERSION:2.0
+CALSCALE:GREGORIAN
 BEGIN:VEVENT
-UID:course-1
-DTSTART:20261023T080000Z
-DTEND:20261023T100000Z
-SUMMARY:INSA-MATH / Lecture / Room / Algebra
-LOCATION:Building - Room 101
+DTSTAMP:20261006T130450Z
+DTSTART:20261202T070000Z
+DTEND:20261202T090000Z
+SUMMARY:HU:0:S1::S-SERIE2:TD::SERIE2-OPT16 #007
+LOCATION:0304-01-04
+DESCRIPTION:\n[HU-0-S1-EC-S-SERIE2:TD] Options Sciences Humaines et Socia
+ les\, S1 Série 2\n()\n\nHU:0:S1::S-SERIE2:TD::SERIE2-OPT16\nCOLMARS Juli
+ en\n\n(Exporté le:06/10/2026 15:04)\n\n
+UID:ADE604144455f494e53415f323032362d323032372d37303736332d302d30
+CREATED:19700101T000000Z
+LAST-MODIFIED:20261006T130450Z
+SEQUENCE:2142505004
+END:VEVENT
+END:VCALENDAR
+"""
+
+ICS_TC = """BEGIN:VCALENDAR
+PRODID:-//EDT//NONSGML v1.0//EN
+VERSION:2.0
+X-WR-CALNAME:Telecom-Promo-5/G1
+X-WR-TIMEZONE:Europe/Paris
+X-WR-CALDESC:Agenda Telecom Promo-5/G1
+CALSCALE:GREGORIAN
+BEGIN:VTIMEZONE
+TZID:Europe/Paris
+X-LIC-LOCATION:Europe/Paris
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:CEST
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;INTERVAL=1;BYDAY=-1SU;BYMONTH=3
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:CET
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;INTERVAL=1;BYDAY=-1SU;BYMONTH=10
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+DTSTAMP:20260919T080002Z
+UID:13c9362580b012ead03eaeb99584cf58
+AALARM:20260921T080000
+CATEGORIES:APPOINTMENT
+DALARM:20260921T080000
+CLASS:PUBLIC
+LOCATION:2-TD B
+DTSTART;TZID=Europe/Paris:20260921T080000
+DTEND;TZID=Europe/Paris:20260921T100000
+SUMMARY:5TC-DMO-2026/2_TD/5TC-G1/
+DESCRIPTION:MMI, SMR
 END:VEVENT
 END:VCALENDAR
 """
 
 
-def test_parse_ics_normalizes_event_fields() -> None:
-    grouped = parse_ics(ICS, owner_id=7, source_key="insa")
-    event = grouped["MATH"][0]
+def test_parse_ics_normalizes_event_fields_ade() -> None:
+    grouped = parse_ics(ICS_ADE, owner_id=7, source_key="ade")
+    print(grouped)
+    event = grouped["SERIE2:TD::SERIE2"][0]
 
     assert event.owner_id == 7
-    assert event.course == "MATH"
-    assert event.subject == "Algebra"
-    assert event.title == "INSA-MATH / Lecture / Room / Algebra"
-    assert event.location == "Room 101"
+    assert event.course == "SERIE2:TD::SERIE2"
+    assert event.subject == "unknown"
+    assert event.title == "HU:0:S1::S-SERIE2:TD::SERIE2-OPT16 #007"
+    assert event.location == "01-04"
+    assert event.start_at.tzinfo == dt.timezone.utc
+
+
+def test_parse_ics_normalizes_event_fields_tc() -> None:
+    grouped = parse_ics(ICS_TC, owner_id=7, source_key="tc")
+    event = grouped["DMO"][0]
+
+    assert event.owner_id == 7
+    assert event.course == "DMO"
+    assert event.subject == "unknown"
+    assert event.title == "5TC-DMO-2026/2_TD/5TC-G1/"
+    assert event.location == "TD B"
     assert event.start_at.tzinfo == dt.timezone.utc
 
 
 def test_all_ics_fixtures_import_every_supported_event_field() -> None:
-    fixture_dir = Path(__file__).parents[2] / "docs"
+    fixture_dir = Path(__file__).parents[1] / ".debug"
     fixture_paths = sorted(fixture_dir.glob("*.ics")) + sorted(fixture_dir.glob("*.ical"))
 
-    assert fixture_paths, "Expected calendar fixtures in docs/"
+    assert fixture_paths, "Expected calendar fixtures in .debug/"
 
     for fixture_path in fixture_paths:
         data = fixture_path.read_bytes()

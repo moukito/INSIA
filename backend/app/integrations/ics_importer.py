@@ -37,7 +37,7 @@ def as_utc(value: object) -> dt.datetime:
     return (result if result.tzinfo else result.replace(tzinfo=UTC)).astimezone(UTC)
 
 
-def parse_ics(data: bytes, owner_id: int, source_key: str = "manual") -> dict[str, list[Event]]:
+def parse_ics(data: bytes | str, owner_id: int, source_key: str = "manual") -> dict[str, list[Event]]:
     try:
         calendar = Calendar.from_ical(data)
     except Exception as error:
