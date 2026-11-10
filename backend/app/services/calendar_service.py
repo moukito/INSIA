@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
-from dataclasses import replace
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import httpx
 
@@ -48,13 +47,17 @@ class CalendarService:
         event_id = self.repository.add(event)
         return replace(event, id=event_id)
 
-    def list_events(self, owner_id: int, start: dt.datetime | None, end: dt.datetime | None) -> list[Event]:
+    def list_events(
+        self, owner_id: int, start: dt.datetime | None, end: dt.datetime | None
+    ) -> list[Event]:
         return self.repository.list_between(owner_id, start, end)
 
     def get_event(self, owner_id: int, event_id: int) -> Event | None:
         return self.repository.get(owner_id, event_id)
 
-    def update_event(self, owner_id: int, event_id: int, values: dict[str, object]) -> Event | None:
+    def update_event(
+        self, owner_id: int, event_id: int, values: dict[str, object]
+    ) -> Event | None:
         current = self.repository.get(owner_id, event_id)
         if current is None:
             return None
@@ -70,13 +73,19 @@ class CalendarService:
     def delete_event(self, owner_id: int, event_id: int) -> bool:
         return self.repository.delete(owner_id, event_id)
 
-    def import_ics(self, owner_id: int, source_key: str, data: bytes) -> tuple[int, list[str]]:
+    def import_ics(
+        self, owner_id: int, source_key: str, data: bytes
+    ) -> tuple[int, list[str]]:
         grouped = parse_ics(data, owner_id, source_key)
-        events = [event for course_events in grouped.values() for event in course_events]
+        events = [
+            event for course_events in grouped.values() for event in course_events
+        ]
         return self.repository.add_many(owner_id, events), sorted(grouped)
 
-    async def synchronize(self, owner_id: int, source_key: str, url: str) -> SyncChanges | None:
-        async with httpx.AsyncClient(timeout=30) as client:
+    async def synchronize(
+        self, owner_id: int, source_key: str, url: str
+    ) -> SyncChanges | None:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
             response = await client.get(url)
             response.raise_for_status()
             data = response.content
@@ -85,6 +94,10 @@ class CalendarService:
         unknown_courses = sorted(set(grouped) - set(choices))
         if unknown_courses:
             return SyncChanges(source_key, [], [], [], unknown_courses)
-        events = [event for course_events in grouped.values() for event in course_events]
-        added, changed, removed = self.repository.synchronize_source(owner_id, source_key, events)
+        events = [
+            event for course_events in grouped.values() for event in course_events
+        ]
+        added, changed, removed = self.repository.synchronize_source(
+            owner_id, source_key, events
+        )
         return SyncChanges(source_key, added, changed, removed, [])
