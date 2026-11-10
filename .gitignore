@@ -1,7 +1,10 @@
-.venv
-.idea
 .env*
 !.env.example
+.venv
+
+.idea
+
+.debug
 
 # Frontend dependencies & build
 frontend/node_modules/
