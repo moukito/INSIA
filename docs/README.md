@@ -1,83 +1,91 @@
-# Idées : 
+# Idées :
 
 ## Questionnaires :
-- Faire un questionnaire pour aider à la sélection des départements. 
-  - récupérer les présentation des départements
-  avoir un retour d’étudiant/alumni
-  - Faire un questionnaire P2I
-  - Faire un questionnaire pour les filières du FIMI
 
-- Centraliser l’emploi du temps de l’étudiant 
-  - emploi du temps des départements
-  - Voir pour les évènements la Missive VA (ajouter au planning les assos)
+- Faire un questionnaire pour aider à la sélection des départements.
+    - récupérer les présentation des départements
+      avoir un retour d’étudiant/alumni
+    - Faire un questionnaire P2I
+    - Faire un questionnaire pour les filières du FIMI
+
+- Centraliser l’emploi du temps de l’étudiant
+    - emploi du temps des départements
+    - Voir pour les évènements la Missive VA (ajouter au planning les assos)
 
 - Gestionnaire de boite mail
-  
+
 - tableau de bord
-  
+
 - Centraliser les différentes tâches à faire en tant qu’étudiant (vie scolaire) ?
 
-
-
 ## Implémentation :
+
 - Backend en python ou autre langage avec API
 - Frontend en react/typescript
 - bd : postgres
 
-## Liens utiles : 
-Documentation formations INSA : https://www.insa-lyon.fr/fr/formation/catalogue 
+## Liens utiles :
+
+Documentation formations INSA : https://www.insa-lyon.fr/fr/formation/catalogue
 
 ## Organistation du projet :
 
-Votre projet ressemble à la création d'un **assistant IA pour les étudiants**, qui centralise les informations scolaires, aide à l'orientation et simplifie la gestion du quotidien étudiant.
+Votre projet ressemble à la création d'un **assistant IA pour les étudiants**, qui centralise les informations
+scolaires, aide à l'orientation et simplifie la gestion du quotidien étudiant.
 
-Le plus important est de ne pas développer chaque idée indépendamment. Je vous conseille de concevoir une application avec un **tableau de bord central, plusieurs fonctionnalités et un backend commun connecté à une API d'IA**.
+Le plus important est de ne pas développer chaque idée indépendamment. Je vous conseille de concevoir une application
+avec un **tableau de bord central, plusieurs fonctionnalités et un backend commun connecté à une API d'IA**.
 
-Je vais vous proposer une architecture technique, des technologies adaptées à votre projet et une manière de répartir le travail entre le frontend et le backend.
+Je vais vous proposer une architecture technique, des technologies adaptées à votre projet et une manière de répartir le
+travail entre le frontend et le backend.
 
 # 1. Le concept : un assistant IA pour les étudiants
 
 Imaginez une application web sur laquelle un étudiant se connecte et retrouve toutes les informations dont il a besoin.
 
-
-
 L'application pourrait être organisée en cinq modules.
 
-| Module | Fonctionnalités | Utilisation de l'IA |
-|---|---|---|
-| 🎓 Orientation | Questionnaires pour choisir un département ou une filière du FIMI | Analyse des réponses et recommandations personnalisées |
-| 📅 Emploi du temps | Regroupement des cours, événements et activités associatives | Extraction des informations depuis des documents et aide à l'organisation |
-| 📧 Gestionnaire de mails | Résumé des mails, extraction des dates importantes, aide à la rédaction | Résumé, classification et génération de texte |
-| ✅ Gestion des tâches | Devoirs, projets, échéances et démarches administratives | Extraction des tâches depuis des mails et aide à la priorisation |
-| 📊 Tableau de bord | Vue globale de la journée, prochains cours, tâches et événements | Synthèse personnalisée de la journée |
+| Module                   | Fonctionnalités                                                         | Utilisation de l'IA                                                       |
+|--------------------------|-------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| 🎓 Orientation           | Questionnaires pour choisir un département ou une filière du FIMI       | Analyse des réponses et recommandations personnalisées                    |
+| 📅 Emploi du temps       | Regroupement des cours, événements et activités associatives            | Extraction des informations depuis des documents et aide à l'organisation |
+| 📧 Gestionnaire de mails | Résumé des mails, extraction des dates importantes, aide à la rédaction | Résumé, classification et génération de texte                             |
+| ✅ Gestion des tâches    | Devoirs, projets, échéances et démarches administratives                | Extraction des tâches depuis des mails et aide à la priorisation          |
+| 📊 Tableau de bord       | Vue globale de la journée, prochains cours, tâches et événements        | Synthèse personnalisée de la journée                                      |
 
-**Mon conseil :** ne cherchez pas à réaliser les cinq modules complètement dès le début. Construisez une base commune, puis ajoutez les fonctionnalités progressivement.
+**Mon conseil :** ne cherchez pas à réaliser les cinq modules complètement dès le début. Construisez une base commune,
+puis ajoutez les fonctionnalités progressivement.
 
-Pour un projet étudiant, un premier prototype fonctionnel avec trois modules bien réalisés sera généralement plus convaincant qu'une application comportant cinq modules incomplets.
+Pour un projet étudiant, un premier prototype fonctionnel avec trois modules bien réalisés sera généralement plus
+convaincant qu'une application comportant cinq modules incomplets.
 
 ---
 
 # 2. La partie visuelle : comment construire le frontend ?
 
-Le frontend est tout ce que l'utilisateur voit et avec quoi il interagit : les pages, les boutons, les formulaires, les calendriers, les menus et les résultats produits par l'IA.
+Le frontend est tout ce que l'utilisateur voit et avec quoi il interagit : les pages, les boutons, les formulaires, les
+calendriers, les menus et les résultats produits par l'IA.
 
 ## A. Les technologies que je vous recommande
 
 Pour une application web moderne, je vous conseille cette combinaison :
 
-| Technologie | Rôle | Pourquoi la choisir ? |
-|---|---|---|
-| **React** | Construction de l'interface | Permet de créer des composants réutilisables |
-| **TypeScript** | Développement frontend | Facilite la détection des erreurs |
-| **Tailwind CSS** | Mise en forme | Permet de construire rapidement une interface cohérente |
-| **shadcn/ui** | Composants visuels | Fournit une base pour les boutons, fenêtres, formulaires et menus |
-| **FullCalendar** | Calendrier | Permet de visualiser les cours et les événements |
+| Technologie      | Rôle                        | Pourquoi la choisir ?                                             |
+|------------------|-----------------------------|-------------------------------------------------------------------|
+| **React**        | Construction de l'interface | Permet de créer des composants réutilisables                      |
+| **TypeScript**   | Développement frontend      | Facilite la détection des erreurs                                 |
+| **Tailwind CSS** | Mise en forme               | Permet de construire rapidement une interface cohérente           |
+| **shadcn/ui**    | Composants visuels          | Fournit une base pour les boutons, fenêtres, formulaires et menus |
+| **FullCalendar** | Calendrier                  | Permet de visualiser les cours et les événements                  |
 
-Vous pouvez aussi utiliser **Next.js**, qui s'appuie sur React et apporte une structure supplémentaire à votre application.
+Vous pouvez aussi utiliser **Next.js**, qui s'appuie sur React et apporte une structure supplémentaire à votre
+application.
 
-Pour un projet réalisé en équipe, je recommande React avec TypeScript, ou Next.js si vous souhaitez un cadre plus complet.
+Pour un projet réalisé en équipe, je recommande React avec TypeScript, ou Next.js si vous souhaitez un cadre plus
+complet.
 
 Ressources officielles :
+
 - [Documentation React](https://react.dev/learn?utm_source=chatgpt.com)
 - [Documentation Next.js](https://nextjs.org/docs?utm_source=chatgpt.com)
 - [Documentation Tailwind CSS](https://tailwindcss.com/docs?utm_source=chatgpt.com)
@@ -93,6 +101,7 @@ Je partirais sur six pages principales.
 C'est la page principale de l'application.
 
 Elle pourrait afficher :
+
 - Un message d'accueil personnalisé.
 - Les prochains cours.
 - Les tâches à réaliser prochainement.
@@ -128,15 +137,19 @@ Ce schéma est une proposition d'organisation, pas une maquette graphique défin
 ### 2. Page emploi du temps
 
 Elle pourrait proposer :
+
 - Une vue par jour et par semaine.
 - Les cours importés depuis les emplois du temps des départements.
 - Les événements des associations.
 - Les échéances personnelles.
 - Des filtres pour afficher ou masquer certaines catégories.
 
-**Point technique important :** il faudra identifier comment récupérer les emplois du temps de votre établissement. Si les données sont disponibles sous forme de fichiers ICS, de flux iCalendar ou d'API, leur intégration sera plus simple que si elles sont uniquement publiées dans des PDF ou des pages web.
+**Point technique important :** il faudra identifier comment récupérer les emplois du temps de votre établissement. Si
+les données sont disponibles sous forme de fichiers ICS, de flux iCalendar ou d'API, leur intégration sera plus simple
+que si elles sont uniquement publiées dans des PDF ou des pages web.
 
-Pour les événements de la Missive VA, il faudra également vérifier les possibilités d'accès et les conditions de réutilisation des données.
+Pour les événements de la Missive VA, il faudra également vérifier les possibilités d'accès et les conditions de
+réutilisation des données.
 
 ### 3. Page orientation
 
@@ -150,22 +163,26 @@ Par exemple :
 4. Le système compare le profil aux descriptions des départements.
 5. Le frontend affiche les résultats et explique les raisons des recommandations.
 
-Il serait intéressant de présenter plusieurs départements, avec leurs points forts, les matières étudiées et les débouchés, plutôt que de donner une seule réponse définitive.
+Il serait intéressant de présenter plusieurs départements, avec leurs points forts, les matières étudiées et les
+débouchés, plutôt que de donner une seule réponse définitive.
 
 ### 4. Page gestionnaire de mails
 
 Elle pourrait présenter :
+
 - Les mails récents.
 - Les mails classés par catégorie.
 - Un résumé des messages.
 - Les dates importantes détectées.
 - Les tâches extraites des messages.
 
-Pour lire réellement les mails d'un utilisateur, il faudra intégrer un service de messagerie et mettre en place une authentification adaptée.
+Pour lire réellement les mails d'un utilisateur, il faudra intégrer un service de messagerie et mettre en place une
+authentification adaptée.
 
 ### 5. Page gestion des tâches
 
 Chaque tâche pourrait contenir :
+
 - Un titre.
 - Une description.
 - Une date limite.
@@ -178,12 +195,14 @@ Chaque tâche pourrait contenir :
 Une interface conversationnelle permettra à l'étudiant de poser des questions.
 
 Exemples :
+
 - « Quels sont mes prochains cours ? »
 - « Quelles sont mes tâches urgentes ? »
 - « Résume ce mail. »
 - « Quels départements correspondent à mes réponses au questionnaire ? »
 
-L'assistant ne devra pas simplement inventer une réponse à partir du contexte de la conversation. Pour les questions sur les cours et les tâches, il devra consulter les données réellement enregistrées dans l'application.
+L'assistant ne devra pas simplement inventer une réponse à partir du contexte de la conversation. Pour les questions sur
+les cours et les tâches, il devra consulter les données réellement enregistrées dans l'application.
 
 ---
 
@@ -191,34 +210,35 @@ L'assistant ne devra pas simplement inventer une réponse à partir du contexte 
 
 Le backend est la partie invisible qui traite les requêtes, stocke les informations et communique avec l'IA.
 
-C'est lui qui fera le lien entre le frontend, la base de données, les services externes et le modèle d'intelligence artificielle.
+C'est lui qui fera le lien entre le frontend, la base de données, les services externes et le modèle d'intelligence
+artificielle.
 
 ## A. Les technologies recommandées
 
 Je vous recommande une architecture Python avec FastAPI.
 
-| Technologie | Rôle |
-|---|---|
-| **Python** | Langage principal du backend |
-| **FastAPI** | Création de l'API |
-| **PostgreSQL** | Stockage des utilisateurs, tâches, cours et événements |
-| **SQLAlchemy** | Interaction entre Python et la base de données |
-| **Pydantic** | Validation des données reçues et renvoyées |
-| **API d'IA** | Génération de réponses, analyse des questionnaires et résumé des mails |
+| Technologie    | Rôle                                                                   |
+|----------------|------------------------------------------------------------------------|
+| **Python**     | Langage principal du backend                                           |
+| **FastAPI**    | Création de l'API                                                      |
+| **PostgreSQL** | Stockage des utilisateurs, tâches, cours et événements                 |
+| **SQLAlchemy** | Interaction entre Python et la base de données                         |
+| **Pydantic**   | Validation des données reçues et renvoyées                             |
+| **API d'IA**   | Génération de réponses, analyse des questionnaires et résumé des mails |
 
 Ressources officielles :
+
 - [Documentation FastAPI](https://fastapi.tiangolo.com/?utm_source=chatgpt.com)
 - [Documentation Python](https://docs.python.org/3/?utm_source=chatgpt.com)
 - [Documentation PostgreSQL](https://www.postgresql.org/docs/?utm_source=chatgpt.com)
 - [Documentation SQLAlchemy](https://docs.sqlalchemy.org/?utm_source=chatgpt.com)
 
-FastAPI est particulièrement adapté si votre équipe connaît Python ou souhaite utiliser ce langage pour manipuler les données et intégrer un modèle d'IA.
+FastAPI est particulièrement adapté si votre équipe connaît Python ou souhaite utiliser ce langage pour manipuler les
+données et intégrer un modèle d'IA.
 
 ## B. Architecture générale
 
 Voici comment les différents composants communiqueront.
-
-
 
 Le fonctionnement général sera le suivant :
 
@@ -248,9 +268,11 @@ Le fonctionnement général sera le suivant :
        └─────────┘ └──────────┘ └──────────┘
 ```
 
-Les sources externes pourront inclure les données scolaires, les calendriers et, si l'intégration est possible, les services de messagerie.
+Les sources externes pourront inclure les données scolaires, les calendriers et, si l'intégration est possible, les
+services de messagerie.
 
-**Règle essentielle : la clé API de l'IA doit rester côté backend.** Ne l'intégrez jamais directement dans le code React ou dans une variable accessible au navigateur. Sinon, un utilisateur pourrait la récupérer et l'utiliser à votre place.
+**Règle essentielle : la clé API de l'IA doit rester côté backend.** Ne l'intégrez jamais directement dans le code React
+ou dans une variable accessible au navigateur. Sinon, un utilisateur pourrait la récupérer et l'utiliser à votre place.
 
 ---
 
@@ -274,6 +296,7 @@ Voici comment je traiterais vos différents cas.
 **Étape 1 : constituer une base documentaire**
 
 Récupérez les descriptions officielles des départements :
+
 - Matières enseignées.
 - Compétences développées.
 - Projets réalisés.
@@ -284,28 +307,33 @@ Stockez ces informations dans une base de données.
 
 **Étape 2 : construire le questionnaire**
 
-Posez des questions sur les centres d'intérêt, les préférences de travail, les domaines techniques et les compétences que l'étudiant souhaite développer.
+Posez des questions sur les centres d'intérêt, les préférences de travail, les domaines techniques et les compétences
+que l'étudiant souhaite développer.
 
 **Étape 3 : calculer les correspondances**
 
 Pour une première version, vous pouvez utiliser un système de scores.
 
-Par exemple, si un étudiant manifeste un intérêt pour l'informatique et les mathématiques, les départements dont les programmes correspondent à ces préférences obtiennent un score plus élevé.
+Par exemple, si un étudiant manifeste un intérêt pour l'informatique et les mathématiques, les départements dont les
+programmes correspondent à ces préférences obtiennent un score plus élevé.
 
 **Étape 4 : utiliser l'IA pour expliquer les résultats**
 
 Le backend transmet au modèle :
+
 - Les réponses de l'étudiant.
 - Les départements les plus pertinents.
 - Les descriptions officielles correspondantes.
 
 L'IA produit ensuite une explication personnalisée, fondée sur ces informations.
 
-Cette approche hybride est préférable à une recommandation entièrement laissée au modèle : les scores déterminent les correspondances, tandis que l'IA facilite leur interprétation.
+Cette approche hybride est préférable à une recommandation entièrement laissée au modèle : les scores déterminent les
+correspondances, tandis que l'IA facilite leur interprétation.
 
 ## B. Questionnaire P2I et filières du FIMI
 
-Le principe est similaire, mais le contenu des questions et les critères de recommandation doivent être adaptés à chaque questionnaire.
+Le principe est similaire, mais le contenu des questions et les critères de recommandation doivent être adaptés à chaque
+questionnaire.
 
 Vous pouvez créer un moteur de questionnaires commun, avec une configuration différente pour chaque usage.
 
@@ -326,11 +354,14 @@ Cela évite de développer trois systèmes distincts.
 
 Ici, l'IA n'est pas forcément nécessaire pour chaque opération.
 
-Si un emploi du temps est déjà disponible dans un format structuré, comme ICS ou JSON, un programme Python classique peut importer les cours et les enregistrer dans la base de données.
+Si un emploi du temps est déjà disponible dans un format structuré, comme ICS ou JSON, un programme Python classique
+peut importer les cours et les enregistrer dans la base de données.
 
-En revanche, si vous devez extraire les horaires d'un PDF, un traitement documentaire ou un modèle d'IA avec des capacités de lecture de documents peut être utile.
+En revanche, si vous devez extraire les horaires d'un PDF, un traitement documentaire ou un modèle d'IA avec des
+capacités de lecture de documents peut être utile.
 
 Il faudra ensuite :
+
 1. Identifier les cours et les événements.
 2. Extraire leurs dates, horaires, lieux et intitulés.
 3. Vérifier que les données sont cohérentes.
@@ -342,6 +373,7 @@ Les données extraites doivent être validées : un modèle peut interpréter in
 ## D. Gestionnaire de mails
 
 L'IA peut :
+
 - Résumer un message.
 - Identifier son sujet.
 - Extraire une date limite.
@@ -352,13 +384,16 @@ Pour une première version, je recommande de commencer par l'analyse d'un mail f
 
 L'intégration directe à Gmail ou Outlook pourra venir ensuite, au moyen de leurs API et des autorisations nécessaires.
 
-Il faut également prévoir des protections adaptées aux données personnelles : les mails peuvent contenir des informations confidentielles. N'envoyez à l'API d'IA que les données nécessaires, et ne transmettez jamais les identifiants ou les mots de passe de messagerie au modèle.
+Il faut également prévoir des protections adaptées aux données personnelles : les mails peuvent contenir des
+informations confidentielles. N'envoyez à l'API d'IA que les données nécessaires, et ne transmettez jamais les
+identifiants ou les mots de passe de messagerie au modèle.
 
 ## E. Gestionnaire de tâches
 
 C'est une fonctionnalité relativement simple à développer.
 
 Vous pouvez combiner :
+
 - Une base de données pour enregistrer les tâches.
 - Des règles pour gérer les dates limites et les priorités.
 - L'IA pour extraire des tâches à partir d'un mail ou d'une description.
@@ -388,17 +423,17 @@ Il envoie des requêtes HTTP à votre backend, qui effectue les opérations néc
 
 Voici un exemple de routes API pour votre application.
 
-| Méthode | Route | Fonction |
-|---|---|---|
-| `GET` | `/api/dashboard` | Récupérer les informations du tableau de bord |
-| `GET` | `/api/events` | Récupérer les cours et les événements |
-| `POST` | `/api/questionnaires` | Créer ou sélectionner un questionnaire |
-| `POST` | `/api/questionnaires/{id}/submit` | Envoyer les réponses et obtenir un résultat |
-| `GET` | `/api/tasks` | Récupérer les tâches |
-| `POST` | `/api/tasks` | Créer une tâche |
-| `PATCH` | `/api/tasks/{id}` | Modifier une tâche |
-| `POST` | `/api/ai/chat` | Envoyer une question à l'assistant IA |
-| `POST` | `/api/ai/summarize-email` | Résumer un mail fourni par l'utilisateur |
+| Méthode | Route                             | Fonction                                      |
+|---------|-----------------------------------|-----------------------------------------------|
+| `GET`   | `/api/dashboard`                  | Récupérer les informations du tableau de bord |
+| `GET`   | `/api/events`                     | Récupérer les cours et les événements         |
+| `POST`  | `/api/questionnaires`             | Créer ou sélectionner un questionnaire        |
+| `POST`  | `/api/questionnaires/{id}/submit` | Envoyer les réponses et obtenir un résultat   |
+| `GET`   | `/api/tasks`                      | Récupérer les tâches                          |
+| `POST`  | `/api/tasks`                      | Créer une tâche                               |
+| `PATCH` | `/api/tasks/{id}`                 | Modifier une tâche                            |
+| `POST`  | `/api/ai/chat`                    | Envoyer une question à l'assistant IA         |
+| `POST`  | `/api/ai/summarize-email`         | Résumer un mail fourni par l'utilisateur      |
 
 Les routes constituent une proposition d'architecture. Vous pourrez les ajuster selon vos besoins.
 
@@ -414,7 +449,31 @@ Le fonctionnement pourrait être le suivant :
 6. Il renvoie la réponse au frontend.
 7. React affiche la réponse.
 
-Pour certaines actions, le modèle pourra aussi demander au backend d'exécuter une fonction précise, comme rechercher les événements à venir. Le backend devra vérifier les autorisations et valider les paramètres avant d'exécuter cette fonction.
+Pour certaines actions, le modèle pourra aussi demander au backend d'exécuter une fonction précise, comme rechercher les
+événements à venir. Le backend devra vérifier les autorisations et valider les paramètres avant d'exécuter cette
+fonction.
+
+## Tools IA du backend
+
+Le backend fournit un registre générique de function tools dans `../backend/app/ai`. Chaque module peut y enregistrer un
+modèle Pydantic et un handler métier sans dépendre directement d'un fournisseur d'IA. Le registre produit des
+définitions compatibles avec l'API Responses/function calling et injecte le contexte serveur au moment de l'exécution.
+
+Les tools calendrier sont disponibles via :
+
+| Méthode | Route                    | Fonction                                         |
+|---------|--------------------------|--------------------------------------------------|
+| `GET`   | `/api/tools`             | Découvrir les tools disponibles                  |
+| `POST`  | `/api/tools/{tool_name}` | Exécuter un tool avec `{ "arguments": { ... } }` |
+
+Les tools `calendar_list_events`, `calendar_get_event`, `calendar_create_event`, `calendar_update_event`,
+`calendar_delete_event`, `calendar_import_ics` et `calendar_sync` couvrent les opérations calendrier. L'identifiant
+propriétaire provient de `X-Owner-ID` (ou du futur contexte d'authentification) et ne doit jamais être envoyé comme
+argument par le modèle.
+
+Pour ajouter un module, créer des modèles d'arguments et appeler `registry.register(...)` avec un handler qui utilise le
+service du module. Les handlers doivent retourner des données JSON et lever `ToolError` pour les erreurs métier
+attendues.
 
 ---
 
@@ -424,52 +483,61 @@ Pour éviter de multiplier les bases de données, vous pouvez utiliser PostgreSQ
 
 Je commencerais avec les tables suivantes :
 
-| Table | Contenu |
-|---|---|
-| `users` | Informations nécessaires aux comptes utilisateurs |
-| `departments` | Descriptions des départements |
-| `programs` | Filières et formations |
-| `questionnaires` | Définition des questionnaires |
-| `questions` | Questions associées aux questionnaires |
-| `questionnaire_responses` | Réponses des utilisateurs |
-| `events` | Cours, événements associatifs et autres rendez-vous |
-| `tasks` | Tâches scolaires et personnelles |
-| `email_summaries` | Éventuels résumés de mails, si leur conservation est nécessaire |
+| Table                     | Contenu                                                         |
+|---------------------------|-----------------------------------------------------------------|
+| `users`                   | Informations nécessaires aux comptes utilisateurs               |
+| `departments`             | Descriptions des départements                                   |
+| `programs`                | Filières et formations                                          |
+| `questionnaires`          | Définition des questionnaires                                   |
+| `questions`               | Questions associées aux questionnaires                          |
+| `questionnaire_responses` | Réponses des utilisateurs                                       |
+| `events`                  | Cours, événements associatifs et autres rendez-vous             |
+| `tasks`                   | Tâches scolaires et personnelles                                |
+| `email_summaries`         | Éventuels résumés de mails, si leur conservation est nécessaire |
 
-Pour les questionnaires, il est également possible de stocker les questions et les critères dans une structure JSON lorsque cela simplifie leur configuration.
+Pour les questionnaires, il est également possible de stocker les questions et les critères dans une structure JSON
+lorsque cela simplifie leur configuration.
 
-Concernant les mails, **évitez de conserver le contenu intégral par défaut** si votre application n'en a pas réellement besoin. Pour un prototype, les données peuvent être traitées temporairement et les résumés enregistrés uniquement si l'utilisateur le souhaite.
+Concernant les mails, **évitez de conserver le contenu intégral par défaut** si votre application n'en a pas réellement
+besoin. Pour un prototype, les données peuvent être traitées temporairement et les résumés enregistrés uniquement si
+l'utilisateur le souhaite.
 
 ---
 
 # 7. Comment répartir le travail dans votre équipe ?
 
-La répartition dépend du nombre de personnes, mais il faut éviter de séparer complètement le frontend du backend sans définir au préalable les interfaces entre les deux.
+La répartition dépend du nombre de personnes, mais il faut éviter de séparer complètement le frontend du backend sans
+définir au préalable les interfaces entre les deux.
 
 Voici une répartition possible pour une équipe de quatre personnes.
 
-| Personne | Responsabilité principale | Travail concret |
-|---|---|---|
-| Personne 1 | Frontend et design | Maquettes, navigation, tableau de bord, composants React |
-| Personne 2 | Backend et données | API FastAPI, base PostgreSQL, gestion des tâches et des événements |
-| Personne 3 | Intégration IA | Appels API, questionnaires, recommandations et résumé des mails |
-| Personne 4 | Intégration et qualité | Import des emplois du temps, tests, intégration frontend/backend et documentation |
+| Personne   | Responsabilité principale | Travail concret                                                                   |
+|------------|---------------------------|-----------------------------------------------------------------------------------|
+| Personne 1 | Frontend et design        | Maquettes, navigation, tableau de bord, composants React                          |
+| Personne 2 | Backend et données        | API FastAPI, base PostgreSQL, gestion des tâches et des événements                |
+| Personne 3 | Intégration IA            | Appels API, questionnaires, recommandations et résumé des mails                   |
+| Personne 4 | Intégration et qualité    | Import des emplois du temps, tests, intégration frontend/backend et documentation |
 
-Cette répartition est indicative : la personne responsable de l'intégration devra travailler avec les autres dès le début, et non uniquement à la fin.
+Cette répartition est indicative : la personne responsable de l'intégration devra travailler avec les autres dès le
+début, et non uniquement à la fin.
 
 Si vous êtes deux ou trois, il sera préférable de regrouper certaines responsabilités.
 
 ### Les outils de travail en équipe
 
 Je vous recommande :
+
 - Git et GitHub pour versionner le code.
 - Figma pour concevoir les maquettes.
 - Postman pour tester les routes de votre API.
 - Docker si vous souhaitez faciliter l'installation et l'exécution du projet sur les machines de tous les membres.
 
-Ressources : [GitHub Docs](https://docs.github.com/?utm_source=chatgpt.com), [Figma Learn](https://help.figma.com/hc/en-us?utm_source=chatgpt.com) et [Documentation Docker](https://docs.docker.com/?utm_source=chatgpt.com).
+Ressources : [GitHub Docs](https://docs.github.com/?utm_source=chatgpt.com), [Figma Learn](https://help.figma.com/hc/en-us?utm_source=chatgpt.com)
+et [Documentation Docker](https://docs.docker.com/?utm_source=chatgpt.com).
 
-**Le point à ne pas oublier :** définissez ensemble le format des requêtes et des réponses de l'API avant que chaque personne développe son module. Vous pourrez ainsi avancer en parallèle sans devoir constamment modifier le code des autres.
+**Le point à ne pas oublier :** définissez ensemble le format des requêtes et des réponses de l'API avant que chaque
+personne développe son module. Vous pourrez ainsi avancer en parallèle sans devoir constamment modifier le code des
+autres.
 
 ---
 
@@ -506,12 +574,14 @@ Vous aurez alors une application fonctionnelle, même sans intelligence artifici
 **Objectif : intégrer des fonctionnalités réellement intelligentes.**
 
 Je commencerais par :
+
 1. Le questionnaire d'orientation avec recommandations.
 2. Le résumé de mails.
 3. L'extraction de tâches depuis un texte.
 4. L'assistant IA connecté aux données de l'application.
 
-Le questionnaire constitue un bon premier cas d'usage, car il permet de tester l'intégration d'une API d'IA sans devoir immédiatement gérer des autorisations complexes sur une boîte mail.
+Le questionnaire constitue un bon premier cas d'usage, car il permet de tester l'intégration d'une API d'IA sans devoir
+immédiatement gérer des autorisations complexes sur une boîte mail.
 
 ## Phase 4 — Ajouter les intégrations externes
 
@@ -535,19 +605,20 @@ Le questionnaire constitue un bon premier cas d'usage, car il permet de tester l
 
 Si vous souhaitez limiter la complexité technique, voici la combinaison que je choisirais :
 
-| Élément | Choix |
-|---|---|
-| Frontend | React + TypeScript |
-| Design | Tailwind CSS + shadcn/ui |
-| Backend | Python + FastAPI |
-| Base de données | PostgreSQL |
+| Élément                   | Choix                           |
+|---------------------------|---------------------------------|
+| Frontend                  | React + TypeScript              |
+| Design                    | Tailwind CSS + shadcn/ui        |
+| Backend                   | Python + FastAPI                |
+| Base de données           | PostgreSQL                      |
 | Intelligence artificielle | API d'un fournisseur de modèles |
-| Gestion du code | GitHub |
-| Maquettes | Figma |
+| Gestion du code           | GitHub                          |
+| Maquettes                 | Figma                           |
 
 Pour le développement initial, vous pouvez lancer le frontend et le backend séparément sur votre ordinateur.
 
 Par exemple :
+
 - Frontend : `localhost:5173`
 - Backend : `localhost:8000`
 - Documentation interactive de l'API FastAPI : `localhost:8000/docs`
@@ -556,19 +627,22 @@ Ce sont des adresses locales de développement, pas des sites accessibles publiq
 
 ### Et si vous voulez aller encore plus vite ?
 
-Vous pourriez utiliser un service comme Supabase pour disposer plus rapidement d'une base PostgreSQL, d'une authentification et d'API de données.
+Vous pourriez utiliser un service comme Supabase pour disposer plus rapidement d'une base PostgreSQL, d'une
+authentification et d'API de données.
 
 Site officiel : [Supabase](https://supabase.com/?utm_source=chatgpt.com).
 
 Dans ce cas, vous pourriez conserver FastAPI pour les opérations nécessitant l'IA et la logique métier spécifique.
 
-Cela évite de devoir développer vous-mêmes toutes les fonctionnalités d'infrastructure. Attention toutefois à configurer correctement les droits d'accès aux données et à ne pas exposer les clés privilégiées dans le frontend.
+Cela évite de devoir développer vous-mêmes toutes les fonctionnalités d'infrastructure. Attention toutefois à configurer
+correctement les droits d'accès aux données et à ne pas exposer les clés privilégiées dans le frontend.
 
 ---
 
 # 10. Mon avis : quelle version de votre projet présenter ?
 
-Votre idée est intéressante parce qu'elle combine plusieurs besoins étudiants, mais le risque principal est de vouloir développer trop de fonctionnalités simultanément.
+Votre idée est intéressante parce qu'elle combine plusieurs besoins étudiants, mais le risque principal est de vouloir
+développer trop de fonctionnalités simultanément.
 
 Je proposerais un premier produit autour de trois fonctionnalités complémentaires.
 
@@ -578,7 +652,8 @@ Il rassemble les informations et les tâches importantes de la journée.
 
 **2. Un assistant IA connecté aux données scolaires**
 
-Il peut répondre aux questions sur les tâches et les événements enregistrés, sous réserve des autorisations de l'utilisateur.
+Il peut répondre aux questions sur les tâches et les événements enregistrés, sous réserve des autorisations de
+l'utilisateur.
 
 **3. Un questionnaire d'orientation intelligent**
 
@@ -586,43 +661,49 @@ Il exploite les descriptions officielles des départements pour proposer des rec
 
 L'emploi du temps et le gestionnaire de mails pourraient ensuite enrichir le tableau de bord.
 
-Cette approche présente un avantage : les fonctionnalités sont reliées entre elles. Les réponses au questionnaire aident à l'orientation, le calendrier centralise les événements et l'assistant facilite l'accès aux informations.
+Cette approche présente un avantage : les fonctionnalités sont reliées entre elles. Les réponses au questionnaire aident
+à l'orientation, le calendrier centralise les événements et l'assistant facilite l'accès aux informations.
 
 ## Pour aller plus loin, j'ai besoin de trois précisions
 
 Elles me permettront de vous proposer une architecture adaptée à votre situation, plutôt qu'une architecture générique.
 
 **1. Vous êtes combien dans le groupe ?**
+
 - A. 2 personnes
 - B. 3 personnes
 - C. 4 personnes
 - D. 5 personnes ou plus
 
 **2. Quel est votre niveau technique ?**
+
 - A. Débutants en développement web
 - B. Nous connaissons Python, mais peu le frontend
 - C. Nous connaissons HTML, CSS et JavaScript
 - D. Nous avons déjà développé des applications avec un frontend et un backend
 
 **3. Quelle est la contrainte principale du projet ?**
+
 - A. Nous devons surtout présenter une démonstration fonctionnelle.
 - B. Nous devons développer une véritable application utilisable.
 - C. Nous devons surtout montrer l'utilisation d'une API d'IA.
 - D. Nous avons un cahier des charges imposé par l'école.
 
-Avec ces trois réponses, je pourrai vous proposer **une architecture technique précise, l'arborescence des fichiers frontend/backend et un plan de développement réparti entre les membres de votre équipe**.
+Avec ces trois réponses, je pourrai vous proposer **une architecture technique précise, l'arborescence des fichiers
+frontend/backend et un plan de développement réparti entre les membres de votre équipe**.
 
-Pour votre projet d'application étudiante avec IA et notifications, je vous conseille de séparer clairement le **frontend, le backend, la logique d'intelligence artificielle et le système de notifications**, tout en conservant un seul dépôt Git.
+Pour votre projet d'application étudiante avec IA et notifications, je vous conseille de séparer clairement le
+**frontend, le backend, la logique d'intelligence artificielle et le système de notifications**, tout en conservant un
+seul dépôt Git.
 
-Je vous propose une architecture adaptée à un projet réalisé en équipe, avec React, TypeScript, Python, FastAPI et PostgreSQL. L'objectif est que chacun puisse travailler sur son module sans perturber le travail des autres.
+Je vous propose une architecture adaptée à un projet réalisé en équipe, avec React, TypeScript, Python, FastAPI et
+PostgreSQL. L'objectif est que chacun puisse travailler sur son module sans perturber le travail des autres.
 
 # 1. Architecture générale du projet
 
 Je recommande un **monorepo** : un seul dépôt Git qui contient l'ensemble du projet.
 
 Cela simplifie la collaboration, puisque le frontend et le backend évoluent au même endroit.
-
-
 
 Voici l'organisation que je choisirais :
 
@@ -649,17 +730,19 @@ student-assistant/
 
 ### Rôle des principaux dossiers
 
-| Dossier | Responsabilité |
-|---|---|
-| `frontend/` | Interface, navigation, formulaires, calendrier et affichage des notifications |
-| `backend/` | API, authentification, données et logique métier |
-| `docs/` | Architecture technique, conventions et documentation des API |
-| `scripts/` | Scripts de lancement, d'importation ou de maintenance |
-| `.github/` | Modèles de pull requests et automatisation des tests |
-| `docker-compose.yml` | Configuration des services de développement |
-| `.env.example` | Liste des variables d'environnement nécessaires, sans secrets |
+| Dossier              | Responsabilité                                                                |
+|----------------------|-------------------------------------------------------------------------------|
+| `../frontend`        | Interface, navigation, formulaires, calendrier et affichage des notifications |
+| `../backend`         | API, authentification, données et logique métier                              |
+| ``                   | Architecture technique, conventions et documentation des API                  |
+| `../scripts`         | Scripts de lancement, d'importation ou de maintenance                         |
+| `.github/`           | Modèles de pull requests et automatisation des tests                          |
+| `docker-compose.yml` | Configuration des services de développement                                   |
+| `../.env.example`    | Liste des variables d'environnement nécessaires, sans secrets                 |
 
-**Pourquoi un monorepo ?** Parce que vous développerez une seule application dont les différents composants doivent fonctionner ensemble. Vous pourrez faire évoluer une route du backend et le composant frontend associé dans une même pull request.
+**Pourquoi un monorepo ?** Parce que vous développerez une seule application dont les différents composants doivent
+fonctionner ensemble. Vous pourrez faire évoluer une route du backend et le composant frontend associé dans une même
+pull request.
 
 ---
 
@@ -755,7 +838,8 @@ frontend/
 └── vite.config.ts
 ```
 
-Cette arborescence est une proposition initiale : inutile de créer immédiatement tous les fichiers. Ajoutez-les lorsque les fonctionnalités correspondantes commencent à être développées.
+Cette arborescence est une proposition initiale : inutile de créer immédiatement tous les fichiers. Ajoutez-les lorsque
+les fonctionnalités correspondantes commencent à être développées.
 
 ## Pourquoi organiser le frontend dans `features/` ?
 
@@ -768,6 +852,7 @@ features/notifications/
 ```
 
 Ce dossier peut contenir :
+
 - La page affichant les notifications.
 - Les fonctions permettant de récupérer les notifications depuis le backend.
 - Les types TypeScript utilisés pour les représenter.
@@ -778,9 +863,11 @@ Les composants réutilisables, comme les boutons ou les fenêtres modales, reste
 
 Votre application devra distinguer deux mécanismes :
 
-**Notifications internes :** elles apparaissent dans l'application, par exemple dans une cloche située dans la barre supérieure.
+**Notifications internes :** elles apparaissent dans l'application, par exemple dans une cloche située dans la barre
+supérieure.
 
-**Notifications push :** elles sont transmises au navigateur ou à l'appareil de l'utilisateur, même lorsque la page n'est pas ouverte, sous réserve de la prise en charge technique et des autorisations nécessaires.
+**Notifications push :** elles sont transmises au navigateur ou à l'appareil de l'utilisateur, même lorsque la page
+n'est pas ouverte, sous réserve de la prise en charge technique et des autorisations nécessaires.
 
 Le frontend gère notamment l'abonnement aux notifications push. En revanche, c'est le backend qui déclenche leur envoi.
 
@@ -790,7 +877,8 @@ Le frontend gère notamment l'abonnement aux notifications push. En revanche, c'
 
 Pour le backend, je recommande Python avec FastAPI.
 
-Je vous conseille une architecture organisée par responsabilités : routes HTTP, logique métier, accès aux données et intégrations externes.
+Je vous conseille une architecture organisée par responsabilités : routes HTTP, logique métier, accès aux données et
+intégrations externes.
 
 ```text
 backend/
@@ -869,21 +957,22 @@ backend/
 
 ## À quoi servent les dossiers importants ?
 
-| Dossier | Rôle |
-|---|---|
-| `api/routes/` | Reçoit les requêtes HTTP et renvoie les réponses |
-| `models/` | Définit les modèles de données stockés en base |
-| `schemas/` | Définit et valide les données échangées avec l'API |
-| `services/` | Contient la logique métier |
-| `repositories/` | Regroupe les opérations d'accès aux données |
-| `ai/` | Centralise les appels au modèle d'IA |
-| `integrations/` | Connecte l'application aux sources externes |
+| Dossier          | Rôle                                                           |
+|------------------|----------------------------------------------------------------|
+| `api/routes/`    | Reçoit les requêtes HTTP et renvoie les réponses               |
+| `models/`        | Définit les modèles de données stockés en base                 |
+| `schemas/`       | Définit et valide les données échangées avec l'API             |
+| `services/`      | Contient la logique métier                                     |
+| `repositories/`  | Regroupe les opérations d'accès aux données                    |
+| `ai/`            | Centralise les appels au modèle d'IA                           |
+| `integrations/`  | Connecte l'application aux sources externes                    |
 | `notifications/` | Gère les règles, la planification et l'envoi des notifications |
-| `db/` | Configure les connexions à la base de données |
-| `migrations/` | Versionne les évolutions du schéma de la base |
-| `tests/` | Contient les tests automatisés |
+| `db/`            | Configure les connexions à la base de données                  |
+| `migrations/`    | Versionne les évolutions du schéma de la base                  |
+| `tests/`         | Contient les tests automatisés                                 |
 
-Vous n'avez pas besoin d'implémenter immédiatement tous ces niveaux d'abstraction. Pour un prototype, les repositories peuvent notamment être introduits progressivement.
+Vous n'avez pas besoin d'implémenter immédiatement tous ces niveaux d'abstraction. Pour un prototype, les repositories
+peuvent notamment être introduits progressivement.
 
 ## Exemple de fonctionnement d'une notification
 
@@ -898,9 +987,11 @@ Le processus serait le suivant :
 5. `push_provider.py` transmet la notification au service push.
 6. Le frontend affiche la notification lorsque le navigateur ou l'appareil la reçoit.
 
-Le service d'IA n'intervient que si une analyse du contenu est nécessaire. Il n'est pas utile pour un simple rappel programmé.
+Le service d'IA n'intervient que si une analyse du contenu est nécessaire. Il n'est pas utile pour un simple rappel
+programmé.
 
-**Attention :** il faut prévoir un mécanisme empêchant l'envoi de doublons et une gestion des erreurs. Il faut également distinguer l'enregistrement d'une notification de la confirmation qu'elle a effectivement été délivrée.
+**Attention :** il faut prévoir un mécanisme empêchant l'envoi de doublons et une gestion des erreurs. Il faut également
+distinguer l'enregistrement d'une notification de la confirmation qu'elle a effectivement été délivrée.
 
 ---
 
@@ -910,16 +1001,17 @@ C'est un point essentiel pour éviter les conflits lorsque plusieurs personnes t
 
 Je vous recommande une stratégie légère, inspirée de GitHub Flow, plutôt qu'un Git Flow complet.
 
-Le principe : une branche principale stable, des branches de fonctionnalités courtes et des pull requests pour intégrer le travail.
+Le principe : une branche principale stable, des branches de fonctionnalités courtes et des pull requests pour intégrer
+le travail.
 
 ## A. Les branches principales
 
 Je partirais sur deux branches permanentes :
 
-| Branche | Rôle | Qui peut y pousser directement ? |
-|---|---|---|
-| `main` | Version stable du projet | Personne, sauf exception explicitement décidée |
-| `develop` | Version d'intégration en cours de développement | Personne : intégration par pull request |
+| Branche   | Rôle                                            | Qui peut y pousser directement ?               |
+|-----------|-------------------------------------------------|------------------------------------------------|
+| `main`    | Version stable du projet                        | Personne, sauf exception explicitement décidée |
+| `develop` | Version d'intégration en cours de développement | Personne : intégration par pull request        |
 
 Puis, chaque développement est effectué dans une branche temporaire.
 
@@ -940,21 +1032,23 @@ Les branches `feature/*` sont créées à partir de `develop`, puis fusionnées 
 
 Lorsque `develop` est suffisamment stable pour une démonstration ou une livraison, vous pouvez le fusionner dans `main`.
 
-**Pourquoi conserver `develop` ?** C'est utile si votre équipe intègre beaucoup de fonctionnalités en parallèle et souhaite maintenir `main` toujours stable. Pour un très petit projet avec peu de développements simultanés, vous pourriez aussi vous passer de `develop` et fusionner directement les branches de fonctionnalités dans `main`.
+**Pourquoi conserver `develop` ?** C'est utile si votre équipe intègre beaucoup de fonctionnalités en parallèle et
+souhaite maintenir `main` toujours stable. Pour un très petit projet avec peu de développements simultanés, vous
+pourriez aussi vous passer de `develop` et fusionner directement les branches de fonctionnalités dans `main`.
 
 ## B. Convention de nommage des branches
 
 Je vous conseille de nommer les branches selon le type de travail.
 
-| Préfixe | Utilisation | Exemple |
-|---|---|---|
-| `feature/` | Nouvelle fonctionnalité | `feature/frontend-dashboard` |
-| `feature/` | Nouvelle fonctionnalité | `feature/push-notifications` |
-| `fix/` | Correction d'un bug | `fix/notification-duplicate` |
-| `refactor/` | Réorganisation du code | `refactor/notification-service` |
-| `docs/` | Documentation | `docs/api-documentation` |
-| `test/` | Ajout ou amélioration de tests | `test/notification-service` |
-| `chore/` | Maintenance et configuration | `chore/docker-setup` |
+| Préfixe     | Utilisation                    | Exemple                         |
+|-------------|--------------------------------|---------------------------------|
+| `feature/`  | Nouvelle fonctionnalité        | `feature/frontend-dashboard`    |
+| `feature/`  | Nouvelle fonctionnalité        | `feature/push-notifications`    |
+| `fix/`      | Correction d'un bug            | `fix/notification-duplicate`    |
+| `refactor/` | Réorganisation du code         | `refactor/notification-service` |
+| ``          | Documentation                  | `docs/api-documentation`        |
+| `test/`     | Ajout ou amélioration de tests | `test/notification-service`     |
+| `chore/`    | Maintenance et configuration   | `chore/docker-setup`            |
 
 Évitez les noms vagues comme `branche-test`, `nouveau-code` ou `travail-final`.
 
@@ -966,16 +1060,17 @@ Le nom doit indiquer clairement ce que la branche cherche à accomplir.
 
 Prenons un exemple avec quatre personnes.
 
-| Membre | Mission | Branche initiale |
-|---|---|---|
-| Personne 1 | Interface et tableau de bord | `feature/frontend-dashboard` |
-| Personne 2 | Backend et gestion des données | `feature/backend-core` |
-| Personne 3 | Notifications push et planification | `feature/push-notifications` |
-| Personne 4 | Intégration de l'IA et questionnaires | `feature/ai-questionnaire` |
+| Membre     | Mission                               | Branche initiale             |
+|------------|---------------------------------------|------------------------------|
+| Personne 1 | Interface et tableau de bord          | `feature/frontend-dashboard` |
+| Personne 2 | Backend et gestion des données        | `feature/backend-core`       |
+| Personne 3 | Notifications push et planification   | `feature/push-notifications` |
+| Personne 4 | Intégration de l'IA et questionnaires | `feature/ai-questionnaire`   |
 
 Chaque personne peut ensuite créer d'autres branches pour des tâches distinctes.
 
-Il n'est pas nécessaire de créer une branche par personne : **créez plutôt une branche par fonctionnalité ou par tâche cohérente**.
+Il n'est pas nécessaire de créer une branche par personne : **créez plutôt une branche par fonctionnalité ou par tâche
+cohérente**.
 
 Par exemple, la personne responsable des notifications peut avoir :
 
@@ -992,11 +1087,13 @@ Ces branches permettent de travailler sur des parties distinctes et de faire des
 Ne modifiez pas tous les mêmes fichiers en parallèle si vous pouvez l'éviter.
 
 Par exemple :
-- Le développeur frontend travaille principalement dans `frontend/`.
-- Le développeur backend travaille principalement dans `backend/`.
-- La personne chargée de l'IA travaille dans `backend/app/ai/`.
 
-Cela ne signifie pas qu'il est interdit de modifier un fichier commun, mais il est préférable de se coordonner lorsqu'une modification touche l'architecture, les dépendances ou les contrats de l'API.
+- Le développeur frontend travaille principalement dans `../frontend`.
+- Le développeur backend travaille principalement dans `../backend`.
+- La personne chargée de l'IA travaille dans `../backend/app/ai`.
+
+Cela ne signifie pas qu'il est interdit de modifier un fichier commun, mais il est préférable de se coordonner
+lorsqu'une modification touche l'architecture, les dépendances ou les contrats de l'API.
 
 ---
 
@@ -1059,6 +1156,7 @@ feature/push-notifications
 ```
 
 La pull request doit expliquer :
+
 - Ce qui a été développé.
 - Comment tester la fonctionnalité.
 - Les éventuelles modifications de l'API ou de la base de données.
@@ -1069,6 +1167,7 @@ Un autre membre vérifie le code avant la fusion.
 ### Étape 6 — Tester avant la fusion
 
 Vérifiez au minimum :
+
 - Que le code fonctionne.
 - Que les tests passent.
 - Que les variables d'environnement nécessaires sont documentées.
@@ -1092,7 +1191,8 @@ La suppression des branches terminées évite d'accumuler des branches inutiles.
 
 C'est probablement le point le plus important de votre organisation.
 
-Imaginez que le développeur frontend crée la page des notifications alors que le développeur backend construit l'API correspondante.
+Imaginez que le développeur frontend crée la page des notifications alors que le développeur backend construit l'API
+correspondante.
 
 Si chacun utilise des formats différents, vous devrez corriger les deux côtés plus tard.
 
@@ -1123,11 +1223,13 @@ Avec une réponse au format JSON :
 
 Il s'agit d'un exemple de contrat à adapter à votre modèle de données.
 
-Le frontend peut commencer à travailler avec des données fictives correspondant à ce format, pendant que le backend implémente la véritable route.
+Le frontend peut commencer à travailler avec des données fictives correspondant à ce format, pendant que le backend
+implémente la véritable route.
 
 Ensuite, il suffit de connecter les deux.
 
-FastAPI génère automatiquement une documentation interactive de l'API, ce qui peut vous aider à vérifier que les contrats sont respectés.
+FastAPI génère automatiquement une documentation interactive de l'API, ce qui peut vous aider à vérifier que les
+contrats sont respectés.
 
 ---
 
@@ -1150,13 +1252,13 @@ Je vous conseille de configurer quelques règles simples sur votre dépôt.
 
 ### Gestion des secrets
 
-Ajoutez ces fichiers à votre `.gitignore` :
+Ajoutez ces fichiers à votre `../.gitignore` :
 
 ```gitignore
 # Variables d'environnement
 .env
 .env.*
-!.env.example
+!../.env.example
 
 # Python
 __pycache__/
@@ -1182,7 +1284,8 @@ htmlcov/
 Thumbs.db
 ```
 
-Attention : cette configuration ignore tous les fichiers `.env.*`, à l'exception de `.env.example`. Si vous utilisez d'autres fichiers d'environnement destinés à être versionnés, adaptez cette règle.
+Attention : cette configuration ignore tous les fichiers `.env.*`, à l'exception de `.env.example`. Si vous utilisez
+d'autres fichiers d'environnement destinés à être versionnés, adaptez cette règle.
 
 **Ne commitez jamais votre clé API d'IA, votre clé privée Web Push ou les identifiants de la base de données.**
 
@@ -1195,7 +1298,8 @@ VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 ```
 
-Le frontend ne doit recevoir que les paramètres publics nécessaires. La clé API de l'IA et la clé privée Web Push restent exclusivement côté backend.
+Le frontend ne doit recevoir que les paramètres publics nécessaires. La clé API de l'IA et la clé privée Web Push
+restent exclusivement côté backend.
 
 ---
 
@@ -1205,21 +1309,24 @@ Oui, au minimum pour les fonctions critiques.
 
 Pour votre application, les tests prioritaires sont :
 
-| Fonctionnalité | Exemple de test |
-|---|---|
-| Gestion des tâches | Une tâche peut être créée et récupérée |
-| Notifications | Un rappel éligible est planifié |
-| Anti-doublons | Un même rappel n'est pas envoyé deux fois |
-| Préférences | Un utilisateur désabonné ne reçoit pas la catégorie concernée |
-| IA | Une réponse structurée est validée avant son enregistrement |
-| API | Un utilisateur ne peut pas accéder aux données d'un autre utilisateur |
+| Fonctionnalité     | Exemple de test                                                       |
+|--------------------|-----------------------------------------------------------------------|
+| Gestion des tâches | Une tâche peut être créée et récupérée                                |
+| Notifications      | Un rappel éligible est planifié                                       |
+| Anti-doublons      | Un même rappel n'est pas envoyé deux fois                             |
+| Préférences        | Un utilisateur désabonné ne reçoit pas la catégorie concernée         |
+| IA                 | Une réponse structurée est validée avant son enregistrement           |
+| API                | Un utilisateur ne peut pas accéder aux données d'un autre utilisateur |
 
 Vous pouvez utiliser :
+
 - `pytest` pour les tests Python.
 - `Vitest` pour les tests frontend.
 - `Playwright` pour les tests de parcours utilisateur.
 
-Ressources officielles : [pytest](https://docs.pytest.org/?utm_source=chatgpt.com), [Vitest](https://vitest.dev/?utm_source=chatgpt.com) et [Playwright](https://playwright.dev/docs/intro?utm_source=chatgpt.com).
+Ressources
+officielles : [pytest](https://docs.pytest.org/?utm_source=chatgpt.com), [Vitest](https://vitest.dev/?utm_source=chatgpt.com)
+et [Playwright](https://playwright.dev/docs/intro?utm_source=chatgpt.com).
 
 ---
 
@@ -1271,16 +1378,20 @@ Je vous recommande également de créer un projet GitHub pour suivre les tâches
 Pour votre application, je retiendrais cette organisation :
 
 - **Un seul dépôt Git** pour le frontend et le backend.
-- **Deux branches principales**, `main` et `develop`, si vous avez besoin de distinguer la version stable de la version d'intégration.
+- **Deux branches principales**, `main` et `develop`, si vous avez besoin de distinguer la version stable de la version
+  d'intégration.
 - **Une branche par fonctionnalité**, avec des noms explicites.
 - **Une pull request par fonctionnalité**, avec tests et revue de code.
 - **Des contrats d'API définis à l'avance** pour que frontend et backend puissent avancer en parallèle.
 - **Des tests automatisés sur les fonctionnalités critiques**, particulièrement les notifications et les autorisations.
 - **Aucune clé secrète dans Git**.
 
-Cette organisation est suffisamment structurée pour travailler efficacement en équipe sans vous imposer un processus de développement trop lourd.
+Cette organisation est suffisamment structurée pour travailler efficacement en équipe sans vous imposer un processus de
+développement trop lourd.
 
-**Dernier conseil :** avant de répartir le travail, créez ensemble le squelette du projet, les fichiers de configuration, les conventions de code et les premières routes API. Cela donnera à chaque membre une base commune et réduira les conflits dès les premiers jours.
+**Dernier conseil :** avant de répartir le travail, créez ensemble le squelette du projet, les fichiers de
+configuration, les conventions de code et les premières routes API. Cela donnera à chaque membre une base commune et
+réduira les conflits dès les premiers jours.
 
 ---
 
@@ -1294,7 +1405,8 @@ Le backend contient maintenant une tranche fonctionnelle dédiée au calendrier 
 - `POST /api/calendar/sources/{source}/import` importe un fichier iCalendar ;
 - `POST /api/calendar/sources/{source}/sync` synchronise un flux iCalendar distant.
 
-En attendant la mise en place de l'authentification, chaque requête calendrier doit fournir l'en-tête `X-Owner-ID`. La persistance utilise PostgreSQL via `DATABASE_URL`. Pour lancer l'API localement :
+En attendant la mise en place de l'authentification, chaque requête calendrier doit fournir l'en-tête `X-Owner-ID`. La
+persistance utilise PostgreSQL via `DATABASE_URL`. Pour lancer l'API localement :
 
 ```powershell
 cd backend
