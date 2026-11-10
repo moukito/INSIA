@@ -1,4 +1,18 @@
-# Idées :
+# Documentation technique INSIA
+
+Ce document est la base de travail détaillée du projet. Il regroupe les idées,
+les choix d’architecture, les conventions d’implémentation, les scénarios
+d’usage et les décisions utiles au développement ou aux requêtes adressées à
+une IA.
+
+Il ne remplace pas le [README public](../README.md), qui présente uniquement
+le projet, son état actuel et les instructions de démarrage principales.
+
+> Les sections de conception et de feuille de route peuvent décrire des
+> fonctionnalités futures. Pour connaître le comportement réellement
+> disponible, consulter le code et le README public.
+
+## Notes de conception
 
 ## Questionnaires :
 

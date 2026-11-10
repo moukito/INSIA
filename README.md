@@ -115,7 +115,7 @@ curl.exe -H "X-Owner-ID: 1" http://127.0.0.1:8000/api/calendar/events
 
 ## Documentation et contribution
 
-- [Documentation technique](docs/README.md) : architecture cible, conventions,
+- [Documentation technique](docs/README-technical.md) : architecture cible, conventions,
   décisions d’implémentation et feuille de route ;
 - [Catalogue des formations de l’INSA Lyon](https://www.insa-lyon.fr/fr/formation/catalogue).
 
