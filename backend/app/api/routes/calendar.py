@@ -3,7 +3,16 @@ from __future__ import annotations
 import datetime as dt
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel, HttpUrl
 
 from app.config import Settings
@@ -22,13 +31,17 @@ def get_settings() -> Settings:
     return Settings.from_environment()
 
 
-def get_repository(settings: Annotated[Settings, Depends(get_settings)]) -> EventRepository:
+def get_repository(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> EventRepository:
     from app.repositories.event_repository import PostgresEventRepository
 
     return PostgresEventRepository(settings.database_url)
 
 
-def get_service(repository: Annotated[EventRepository, Depends(get_repository)]) -> CalendarService:
+def get_service(
+    repository: Annotated[EventRepository, Depends(get_repository)],
+) -> CalendarService:
     return CalendarService(repository)
 
 
@@ -45,7 +58,10 @@ def list_events(
 ) -> list[EventRead]:
     if start and end and end <= start:
         raise HTTPException(status_code=400, detail="end must be after start")
-    return [EventRead.model_validate(event) for event in service.list_events(owner, start, end)]
+    return [
+        EventRead.model_validate(event)
+        for event in service.list_events(owner, start, end)
+    ]
 
 
 @router.post("/events", response_model=EventRead, status_code=status.HTTP_201_CREATED)
@@ -77,7 +93,9 @@ def update_event(
     service: Annotated[CalendarService, Depends(get_service)],
 ) -> EventRead:
     try:
-        event = service.update_event(owner, event_id, payload.model_dump(exclude_unset=True))
+        event = service.update_event(
+            owner, event_id, payload.model_dump(exclude_unset=True)
+        )
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     if event is None:
