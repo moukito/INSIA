@@ -22,6 +22,9 @@ class Settings:
     default_meteo_location: str
     default_latitude: float
     default_longitude: float
+    openai_api_key: str = ""
+    openai_model: str = "gpt-6-luna"
+    assistant_max_rounds: int = 10
     command_guild_id: int | None = None
 
     @classmethod
@@ -46,6 +49,9 @@ class Settings:
             ),
             default_latitude=float(os.getenv("DEFAULT_METEO_LATITUDE", "45.7719")),
             default_longitude=float(os.getenv("DEFAULT_METEO_LONGITUDE", "4.8902")),
+            openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+            openai_model=os.getenv("OPENAI_MODEL", "gpt-6-luna"),
+            assistant_max_rounds=int(os.getenv("ASSISTANT_MAX_ROUNDS", "10")),
         )
 
 
@@ -57,7 +63,9 @@ def _parse_sources(value: str) -> dict[str, str]:
         try:
             name, url = item.split("=", 1)
         except ValueError as error:
-            raise ValueError("ICS_SOURCES must use name=url pairs separated by commas") from error
+            raise ValueError(
+                "ICS_SOURCES must use name=url pairs separated by commas"
+            ) from error
         sources[name.strip()] = url.strip()
     return sources
 
@@ -75,9 +83,7 @@ def _parse_timezone(value: str) -> ZoneInfo:
     try:
         return ZoneInfo(value)
     except (ValueError, TypeError, KeyError) as error:
-        raise ValueError(
-            "SYNC_TIMEZONE must be a valid IANA timezone"
-        ) from error
+        raise ValueError("SYNC_TIMEZONE must be a valid IANA timezone") from error
 
 
 def _parse_sync_time(value: str, timezone: ZoneInfo) -> dt.time:
