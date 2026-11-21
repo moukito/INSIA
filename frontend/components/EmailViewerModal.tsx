@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   X,
   Reply,
@@ -8,11 +8,12 @@ import {
   FileText,
   Paperclip,
   Clock,
-  User,
   AlertCircle,
-  ExternalLink,
   CheckCircle2,
   Share2,
+  ExternalLink,
+  Mail,
+  RefreshCw,
 } from "lucide-react";
 import { EmailCategoryBadge } from "./EmailCategoryBadge";
 import { FormattedEmailBody } from "./FormattedEmailBody";
@@ -44,12 +45,14 @@ interface EmailViewerModalProps {
   emailId: number | null;
   onClose: () => void;
   onMarkAsRead?: (id: number) => void;
+  onOpenInMailbox?: (id: number) => void;
 }
 
 export function EmailViewerModal({
   emailId,
   onClose,
   onMarkAsRead,
+  onOpenInMailbox,
 }: EmailViewerModalProps) {
   const [data, setData] = useState<EmailDetailData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,12 +60,20 @@ export function EmailViewerModal({
   const [showImages, setShowImages] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Éviter les boucles infinies de re-render en stockant onMarkAsRead dans une ref
+  const onMarkAsReadRef = useRef(onMarkAsRead);
   useEffect(() => {
-    if (!emailId) {
+    onMarkAsReadRef.current = onMarkAsRead;
+  }, [onMarkAsRead]);
+
+  useEffect(() => {
+    if (!emailId || emailId <= 0) {
       setData(null);
+      setLoading(false);
       return;
     }
 
+    let isCancelled = false;
     setLoading(true);
     setError("");
     setData(null);
@@ -70,17 +81,26 @@ export function EmailViewerModal({
 
     fetch(`/api/emails/${emailId}`)
       .then((res) => {
-        if (!res.ok) throw new Error("Erreur de récupération de l'email.");
+        if (!res.ok) throw new Error("Erreur de récupération de l'email depuis Zmail.");
         return res.json();
       })
       .then((json) => {
+        if (isCancelled) return;
         if (json.error) throw new Error(json.error);
         setData(json);
-        if (onMarkAsRead) onMarkAsRead(emailId);
+        onMarkAsReadRef.current?.(emailId);
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [emailId, onMarkAsRead]);
+      .catch((err) => {
+        if (!isCancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!isCancelled) setLoading(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [emailId]);
 
   // Fermer avec la touche Échap
   useEffect(() => {
@@ -91,16 +111,17 @@ export function EmailViewerModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  if (!emailId) return null;
+  if (!emailId || emailId <= 0) return null;
 
   // Calcul initiales expéditeur
   const senderName = data?.from?.name || data?.from?.address || "Inconnu";
-  const initials = senderName
-    .split(/[\s.@_-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("") || "M";
+  const initials =
+    senderName
+      .split(/[\s.@_-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase())
+      .join("") || "M";
 
   // Formatage de la date en français
   const formattedDate = data?.date
@@ -124,25 +145,40 @@ export function EmailViewerModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
       <div
         className="fixed inset-0"
         onClick={onClose}
         aria-label="Fermer la modal"
       />
 
-      <div className="relative z-10 flex flex-col w-full max-w-4xl max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
+      <div className="relative z-10 flex flex-col w-full max-w-4xl max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
         {/* En-tête de la modale */}
-        <div className="flex items-center justify-between border-b border-slate-200/80 px-5 py-3.5 bg-slate-50/70">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center justify-between border-b border-slate-200/80 px-5 py-3.5 bg-slate-50/80">
+          <div className="flex items-center gap-2.5 min-w-0">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Lecture du message
+              Lecture de l'email
             </span>
             {data?.category && (
               <EmailCategoryBadge category={data.category} size="sm" />
             )}
+            <span className="text-[11px] text-slate-400 font-mono">
+              #{emailId}
+            </span>
           </div>
+
           <div className="flex items-center gap-2">
+            {onOpenInMailbox && (
+              <button
+                onClick={() => onOpenInMailbox(emailId)}
+                title="Ouvrir dans la boîte Mes emails"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition"
+              >
+                <Mail size={13} />
+                <span>Ouvrir dans Mes emails</span>
+              </button>
+            )}
+
             {data && (
               <>
                 <button
@@ -162,6 +198,7 @@ export function EmailViewerModal({
                     </>
                   )}
                 </button>
+
                 {data.from.address && (
                   <a
                     href={`mailto:${data.from.address}?subject=Re: ${encodeURIComponent(
@@ -175,6 +212,7 @@ export function EmailViewerModal({
                 )}
               </>
             )}
+
             <button
               onClick={onClose}
               className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition"
@@ -188,25 +226,21 @@ export function EmailViewerModal({
         {/* Corps principal défilable */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-7">
           {loading && (
-            <div className="space-y-6 py-6 animate-pulse">
-              <div className="h-7 w-3/4 bg-slate-200 rounded-lg" />
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-slate-200" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-4 w-48 bg-slate-200 rounded" />
-                  <div className="h-3 w-64 bg-slate-100 rounded" />
-                </div>
-              </div>
-              <div className="space-y-3 pt-4 border-t border-slate-100">
-                <div className="h-4 w-full bg-slate-100 rounded" />
-                <div className="h-4 w-5/6 bg-slate-100 rounded" />
-                <div className="h-4 w-4/6 bg-slate-100 rounded" />
+            <div className="py-16 text-center space-y-4">
+              <RefreshCw size={28} className="animate-spin text-indigo-600 mx-auto" />
+              <div>
+                <p className="text-sm font-semibold text-slate-800">
+                  Chargement de l'email depuis Zmail INSA...
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Récupération du contenu et des pièces jointes en cours.
+                </p>
               </div>
             </div>
           )}
 
           {error && (
-            <div className="p-6 text-center space-y-3">
+            <div className="p-8 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
                 <AlertCircle size={24} />
               </div>
@@ -243,7 +277,7 @@ export function EmailViewerModal({
                 </h2>
               </div>
 
-              {/* Bloc Expéditeur / Destinataire / Date (Forme normale d'un mail) */}
+              {/* Bloc Expéditeur / Destinataire / Date */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-sm shadow-indigo-100">
@@ -336,7 +370,7 @@ export function EmailViewerModal({
           <span>Boîte Zmail · INSA Lyon</span>
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50 transition"
+            className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
           >
             Fermer
           </button>

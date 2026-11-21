@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Users,
   GraduationCap,
+  Building2,
   Mail,
 } from "lucide-react";
 
@@ -24,8 +25,9 @@ export function EmailCategoryBadge({
 
   const iconMap = {
     stage: Briefcase,
-    urgence: AlertTriangle,
+    departement: Building2,
     association: Users,
+    urgence: AlertTriangle,
     cours: GraduationCap,
     autre: Mail,
   };
