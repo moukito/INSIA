@@ -1,0 +1,1 @@
+"""INSIA backend application package."""
