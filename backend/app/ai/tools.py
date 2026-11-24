@@ -8,6 +8,35 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 
 
+def _make_strict_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    result = dict(schema)
+    if result.get("format") == "uri":
+        result.pop("format")
+    properties = result.get("properties")
+    if isinstance(properties, dict):
+        result["required"] = list(properties)
+        result["additionalProperties"] = False
+        result["properties"] = {
+            name: _make_strict_json_schema(value)
+            if isinstance(value, dict)
+            else value
+            for name, value in properties.items()
+        }
+    for key in ("allOf", "anyOf", "oneOf"):
+        variants = result.get(key)
+        if isinstance(variants, list):
+            result[key] = [
+                _make_strict_json_schema(value)
+                if isinstance(value, dict)
+                else value
+                for value in variants
+            ]
+    items = result.get("items")
+    if isinstance(items, dict):
+        result["items"] = _make_strict_json_schema(items)
+    return result
+
+
 @dataclass(frozen=True, slots=True)
 class ToolContext:
     """Server-owned values available to a tool handler."""
@@ -36,7 +65,9 @@ class ToolDefinition:
             "type": "function",
             "name": self.name,
             "description": self.description,
-            "parameters": self.input_model.model_json_schema(),
+            "parameters": _make_strict_json_schema(
+                self.input_model.model_json_schema()
+            ),
             "strict": True,
         }
 

@@ -110,23 +110,24 @@ class PostgresEventRepository:
         if not rows:
             return 0
         with closing(self._connect()) as connection:
-            connection.executemany(
-                """
-                INSERT INTO events
-                    (owner_id, uid, source_key, course, subject, title, start_at, end_at, location, description)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT(owner_id, uid, start_at) DO UPDATE SET
-                    source_key = EXCLUDED.source_key,
-                    course = EXCLUDED.course,
-                    subject = EXCLUDED.subject,
-                    title = EXCLUDED.title,
-                    end_at = EXCLUDED.end_at,
-                    location = EXCLUDED.location,
-                    description = EXCLUDED.description,
-                    reminder_sent_at = NULL
-                """,
-                rows,
-            )
+            with connection.cursor() as cursor:
+                cursor.executemany(
+                    """
+                    INSERT INTO events
+                        (owner_id, uid, source_key, course, subject, title, start_at, end_at, location, description)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT(owner_id, uid, start_at) DO UPDATE SET
+                        source_key = EXCLUDED.source_key,
+                        course = EXCLUDED.course,
+                        subject = EXCLUDED.subject,
+                        title = EXCLUDED.title,
+                        end_at = EXCLUDED.end_at,
+                        location = EXCLUDED.location,
+                        description = EXCLUDED.description,
+                        reminder_sent_at = NULL
+                    """,
+                    rows,
+                )
             connection.commit()
         return len(rows)
 

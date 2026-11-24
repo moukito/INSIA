@@ -15,7 +15,7 @@ class EventCreate(BaseModel):
     description: str = Field(default="", max_length=5000)
 
     @model_validator(mode="after")
-    def validate_period(self) -> "EventCreate":
+    def validate_period(self) -> EventCreate:
         if self.end_at <= self.start_at:
             raise ValueError("The end must be after the start.")
         return self
@@ -58,3 +58,12 @@ class SyncResult(BaseModel):
     changed: int
     removed: int
     unknown_courses: list[str] = []
+
+
+class CourseChoiceRead(BaseModel):
+    course: str
+    enabled: bool
+
+
+class CourseChoiceUpdate(BaseModel):
+    enabled: bool
