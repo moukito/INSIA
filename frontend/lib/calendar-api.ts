@@ -37,6 +37,11 @@ export type SyncResult = {
     unknown_courses: string[];
 };
 
+export type CourseChoice = {
+    course: string;
+    enabled: boolean;
+};
+
 async function parseResponse<T>(response: Response): Promise<T> {
     const data = (await response.json().catch(() => null)) as
         | T
@@ -121,5 +126,28 @@ export async function syncCalendarSource(
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({url}),
         })
+    );
+}
+
+export async function fetchCourseChoices(sourceKey: string): Promise<CourseChoice[]> {
+    return parseResponse(
+        await fetch(`/api/calendar/sources/${encodeURIComponent(sourceKey)}/courses`)
+    );
+}
+
+export async function updateCourseChoice(
+    sourceKey: string,
+    course: string,
+    enabled: boolean
+): Promise<CourseChoice> {
+    return parseResponse(
+        await fetch(
+            `/api/calendar/sources/${encodeURIComponent(sourceKey)}/courses/${encodeURIComponent(course)}`,
+            {
+                method: "PATCH",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({enabled}),
+            }
+        )
     );
 }

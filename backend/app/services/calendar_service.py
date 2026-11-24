@@ -92,10 +92,14 @@ class CalendarService:
         grouped = parse_ics(data, owner_id, source_key)
         choices = self.repository.course_choices(owner_id, source_key)
         unknown_courses = sorted(set(grouped) - set(choices))
-        if unknown_courses:
-            return SyncChanges(source_key, [], [], [], unknown_courses)
+        for course in unknown_courses:
+            self.repository.set_course_choice(owner_id, source_key, course, True)
+            choices[course] = True
         events = [
-            event for course_events in grouped.values() for event in course_events
+            event
+            for course, course_events in grouped.items()
+            if choices.get(course, True)
+            for event in course_events
         ]
         added, changed, removed = self.repository.synchronize_source(
             owner_id, source_key, events

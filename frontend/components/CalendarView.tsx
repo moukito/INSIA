@@ -3,14 +3,17 @@
 import {FormEvent, useCallback, useEffect, useMemo, useState} from "react";
 import {ChevronLeft, ChevronRight, FileUp, Plus, RefreshCw, Trash2, X,} from "lucide-react";
 import {
-  CalendarEvent,
-  createCalendarEvent,
-  deleteCalendarEvent,
-  EventInput,
-  fetchCalendarEvents,
-  importCalendarFile,
-  syncCalendarSource,
-  updateCalendarEvent,
+    CalendarEvent,
+    CourseChoice,
+    createCalendarEvent,
+    deleteCalendarEvent,
+    EventInput,
+    fetchCalendarEvents,
+    fetchCourseChoices,
+    importCalendarFile,
+    syncCalendarSource,
+    updateCalendarEvent,
+    updateCourseChoice,
 } from "@/lib/calendar-api";
 
 const DAY_START = 7;
@@ -78,6 +81,8 @@ export function CalendarView({
     const [form, setForm] = useState<EventForm | null>(null);
     const [sourceKey, setSourceKey] = useState("calendar");
     const [sourceUrl, setSourceUrl] = useState("");
+    const [courseChoices, setCourseChoices] = useState<CourseChoice[]>([]);
+    const [choicesLoading, setChoicesLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
@@ -103,12 +108,34 @@ export function CalendarView({
         }
     }, [onEventsChange, week, weekEnd]);
 
+    const loadCourseChoices = useCallback(async () => {
+        if (!sourceKey.trim()) {
+            setCourseChoices([]);
+            return;
+        }
+        setChoicesLoading(true);
+        try {
+            setCourseChoices(await fetchCourseChoices(sourceKey.trim()));
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : "Impossible de charger les cours.");
+        } finally {
+            setChoicesLoading(false);
+        }
+    }, [sourceKey]);
+
     useEffect(() => {
         const timer = window.setTimeout(() => {
             void loadEvents();
         }, 0);
         return () => window.clearTimeout(timer);
     }, [loadEvents]);
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            void loadCourseChoices();
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }, [loadCourseChoices]);
 
     const days = Array.from({length: 7}, (_, index) => {
         const day = new Date(week);
@@ -195,6 +222,7 @@ export function CalendarView({
         try {
             const result = await syncCalendarSource(sourceKey, sourceUrl.trim());
             setNotice(`${result.added} ajouté(s), ${result.changed} modifié(s), ${result.removed} supprimé(s).`);
+            await loadCourseChoices();
             await loadEvents();
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : "Synchronisation impossible.");
@@ -265,6 +293,45 @@ export function CalendarView({
                     <div
                         className={`mb-4 rounded-lg px-3 py-2 text-xs ${error ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
                         {error || notice}
+                    </div>
+                )}
+
+                {courseChoices.length > 0 && (
+                    <div className="mb-4 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                        <p className="mb-2 text-xs font-semibold text-slate-700">Cours suivis</p>
+                        {choicesLoading ? (
+                            <p className="text-xs text-slate-500">Chargement...</p>
+                        ) : (
+                            <div className="flex flex-wrap gap-x-4 gap-y-2">
+                                {courseChoices.map((choice) => (
+                                    <label key={choice.course}
+                                           className="flex items-center gap-2 text-xs text-slate-600">
+                                        <input
+                                            type="checkbox"
+                                            checked={choice.enabled}
+                                            onChange={async (event) => {
+                                                try {
+                                                    const updated = await updateCourseChoice(
+                                                        sourceKey,
+                                                        choice.course,
+                                                        event.target.checked
+                                                    );
+                                                    setCourseChoices((current) =>
+                                                        current.map((item) =>
+                                                            item.course === updated.course ? updated : item
+                                                        )
+                                                    );
+                                                    await loadEvents();
+                                                } catch (caught) {
+                                                    setError(caught instanceof Error ? caught.message : "Impossible de modifier le cours.");
+                                                }
+                                            }}
+                                        />
+                                        {choice.course}
+                                    </label>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
