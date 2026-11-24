@@ -45,6 +45,7 @@ import { EmailCategory } from "@/lib/email-classifier";
 import { EmailCategoryBadge } from "@/components/EmailCategoryBadge";
 import { EmailViewerModal, EmailDetailData } from "@/components/EmailViewerModal";
 import { FormattedEmailBody } from "@/components/FormattedEmailBody";
+import { OrientationView } from "@/components/OrientationView";
 import { CalendarView } from "@/components/CalendarView";
 import { CalendarEvent, fetchCalendarEvents } from "@/lib/calendar-api";
 import { AssociationEvent, REAL_ASSOCIATION_EVENTS } from "@/lib/association-events";
@@ -2057,6 +2058,7 @@ export default function DashboardPage() {
           {/* ============================================================== */}
           {/* VUE 5 : MES EMAILS                                             */}
           {/* ============================================================== */}
+          {activeNav === "Orientation" && <OrientationView />}
           {activeNav === "Mes emails" && (
             <section className="space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
