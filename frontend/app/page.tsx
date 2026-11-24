@@ -42,6 +42,7 @@ import { EmailCategory, CATEGORIES } from "@/lib/email-classifier";
 import { EmailCategoryBadge } from "@/components/EmailCategoryBadge";
 import { EmailViewerModal, EmailDetailData } from "@/components/EmailViewerModal";
 import { FormattedEmailBody } from "@/components/FormattedEmailBody";
+import { OrientationView } from "@/components/OrientationView";
 
 export type EmailItem = {
   id: number;
@@ -517,7 +518,7 @@ export default function DashboardPage() {
           {/* ============================================================== */}
           {/* VUE TABLEAU DE BORD (AVEC SECTION EMAILS SÉPARÉS PAR CATÉGORIE) */}
           {/* ============================================================== */}
-          {activeNav !== "Mes emails" && (
+          {activeNav !== "Mes emails" && activeNav !== "Orientation" &&(
             <>
               {/* Bannière de bienvenue */}
               <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-600 p-6 text-white shadow-xl shadow-indigo-100 sm:p-9">
@@ -995,6 +996,7 @@ export default function DashboardPage() {
           {/* ============================================================== */}
           {/* VUE COMPLÈTE : MES EMAILS (BOÎTE DE RÉCEPTION FORMAT NORMAL)   */}
           {/* ============================================================== */}
+          {activeNav === "Orientation" && <OrientationView />}
           {activeNav === "Mes emails" && (
             <section className="space-y-4">
               {/* En-tête de la boîte email */}

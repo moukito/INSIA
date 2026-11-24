@@ -9,8 +9,8 @@ modele = "gpt-6-luna"
 vector_store_id = "vs_6af2d778ea5c8191a9ebf54c43c258d7"
 
 nb_questions_min_borne = 10
-nb_questions_min_defaut = 15
-nb_questions_max = 50
+nb_questions_defaut = 15
+nb_questions_max_borne = 50
 nb_tours_api_max = 100
 
 tous_les_departements = ["BTBI", "GM", "TC", "IF", "GCU", "GI", "MT", "GE", "GEN"]
@@ -53,12 +53,11 @@ def creer_etat() -> dict:
     }
 
 
-def etat_questionnaire(etat: dict, nb_questions_min: int) -> dict:
+def etat_questionnaire(etat: dict, nb_questions_cible: int) -> dict:
     """Résume l'avancement du questionnaire pour l'envoyer à l'IA."""
     return {
         "questions_posees": etat["compteur_questions"],
-        "questions_minimum_restantes": max(nb_questions_min - etat["compteur_questions"], 0),
-        "questions_maximum_restantes": nb_questions_max - etat["compteur_questions"],
+        "questions_restantes": max(nb_questions_cible - etat["compteur_questions"], 0),
         "categories_non_couvertes": [c for c in categories if c not in etat["categories_couvertes"]],
     }
 
@@ -128,7 +127,7 @@ def creer_schema_resultat(departements: list[str]) -> dict:
     }
 
 
-def construire_instructions(departements: list[str], preferences: str, nb_questions_min: int) -> str:
+def construire_instructions(departements: list[str], preferences: str, nb_questions_cible: int) -> str:
     """Construit les instructions système pour les départements et les préférences donnés."""
     liste_categories = "\n".join(f"- {nom} : {desc}" for nom, desc in categories.items())
     texte_preferences = preferences.strip() or "Aucune préférence renseignée au départ."
@@ -139,16 +138,15 @@ Préférences de l'étudiant : {texte_preferences}
 
 DÉROULEMENT
 1. Commence par consulter la documentation des départements avec file_search.
-2. Pose au minimum {nb_questions_min} questions et au maximum {nb_questions_max}, une seule à la fois, avec rep_qcm ou rep_echelle.
+2. Pose exactement {nb_questions_cible} questions, une seule à la fois, avec rep_qcm ou rep_echelle.
    Attends la réponse avant de poser la suivante. Ne montre aucun score à l'étudiant pendant les questions.
 3. Phase 1, couverture : couvre chaque catégorie ci-dessous au moins une fois. Après chaque réponse, l'outil te donne
    les catégories non couvertes et le nombre de questions restantes. Ne pose pas deux fois de suite la même catégorie
    tant qu'il en reste de non couvertes. Commence par celles qui départagent le mieux les départements choisis.
-4. Phase 2, départage : utilise les questions suivantes pour départager les départements proches et pour creuser
-   les catégories où les réponses sont ambiguës ou contradictoires. Vérifie aussi qu'un département qui semble
+4. Phase 2, départage : utilise les questions restantes jusqu'à atteindre {nb_questions_cible} questions pour départager
+   les départements proches et creuser les catégories ambiguës ou contradictoires. Vérifie aussi qu'un département qui semble
    défavorisé ne pourrait pas plaire à l'étudiant : ne pose pas que des questions sur le département en tête.
-5. Après {nb_questions_min} questions, conclus si le résultat est clair (au moins 10 points d'écart entre les deux
-   premiers et aucune catégorie importante ambiguë). Sinon continue, sans dépasser {nb_questions_max} questions.
+5. Dès que les {nb_questions_cible} questions ont été posées, produis immédiatement le résultat final au format JSON.
 
 CATÉGORIES
 {liste_categories}
@@ -219,12 +217,12 @@ def add_tool(payload: dict, name: str, description: str, parameters: list[dict])
     })
 
 
-def construire_payload(departements: list[str], preferences: str, nb_questions_min: int) -> dict:
+def construire_payload(departements: list[str], preferences: str, nb_questions_cible: int) -> dict:
     """Construit le payload initial envoyé à l'API OpenAI."""
     texte_preferences = preferences.strip() or "Aucune préférence renseignée."
     payload = {
         "model": modele,
-        "instructions": construire_instructions(departements, preferences, nb_questions_min),
+        "instructions": construire_instructions(departements, preferences, nb_questions_cible),
         "input": [
             {
                 "role": "user",
@@ -322,10 +320,10 @@ def calculer_resultat(texte: str, departements: list[str]) -> dict:
     }
 
 
-def _valider_appel_outil(etat: dict, nom_outil: str, arguments: dict) -> dict:
+def _valider_appel_outil(etat: dict, nb_questions_cible: int, nom_outil: str, arguments: dict) -> dict:
     """Vérifie les paramètres envoyés par l'IA et normalise la question."""
-    if etat["compteur_questions"] >= nb_questions_max:
-        return {"erreur": "Nombre maximum de questions atteint. Donne maintenant le résultat final."}
+    if etat["compteur_questions"] >= nb_questions_cible:
+        return {"erreur": "Nombre de questions demandé atteint. Donne maintenant le résultat final."}
 
     categorie = arguments.get("categorie")
     if categorie not in categories:
@@ -358,20 +356,25 @@ def _avancer_session(session: dict) -> dict:
     client = creer_client()
     payload = session["payload"]
     etat = session["etat"]
+    nb_cible = session["nb_questions"]
 
     for _ in range(nb_tours_api_max):
-        response = client.responses.create(**payload)
+        appel_payload = dict(payload)
+        if etat["compteur_questions"] >= nb_cible:
+            appel_payload["tool_choice"] = "none"
+
+        response = client.responses.create(**appel_payload)
         payload["input"].extend(response.output)
 
         tool_calls = [item for item in response.output if item.type == "function_call"]
 
         if not tool_calls:
-            if etat["compteur_questions"] < session["nb_questions_min"]:
+            if etat["compteur_questions"] < nb_cible:
                 payload["input"].append({
                     "role": "user",
                     "content": (
-                        f"Tu n'as posé que {etat['compteur_questions']} questions, "
-                        f"le minimum est {session['nb_questions_min']}. Continue avec rep_qcm ou rep_echelle."
+                        f"Tu n'as posé que {etat['compteur_questions']} questions sur {nb_cible}. "
+                        f"Continue avec rep_qcm ou rep_echelle."
                     ),
                 })
                 continue
@@ -382,7 +385,7 @@ def _avancer_session(session: dict) -> dict:
                 raise RuntimeError(f"Résultat illisible : {exc}") from exc
 
             resultat["reponses"] = etat["historique"]
-            sessions.pop(session["id"], None)
+            session["resultat"] = resultat
             return {
                 "session_id": session["id"],
                 "fini": True,
@@ -398,7 +401,7 @@ def _avancer_session(session: dict) -> dict:
 
         tool_call = tool_calls[0]
         arguments = json.loads(tool_call.arguments)
-        validation = _valider_appel_outil(etat, tool_call.name, arguments)
+        validation = _valider_appel_outil(etat, nb_cible, tool_call.name, arguments)
 
         if "erreur" in validation:
             payload["input"].append({
@@ -410,8 +413,7 @@ def _avancer_session(session: dict) -> dict:
 
         question_courante = {
             "numero": etat["compteur_questions"] + 1,
-            "minimum": session["nb_questions_min"],
-            "maximum": nb_questions_max,
+            "total": nb_cible,
             "type": validation["type"],
             "categorie": validation["categorie"],
             "texte": validation["texte"],
@@ -432,24 +434,25 @@ def _avancer_session(session: dict) -> dict:
 
 def demarrer_session(
     departements: list[str],
-    nb_questions: int = nb_questions_min_defaut,
+    nb_questions: int = nb_questions_defaut,
     preferences: str = "",
 ) -> dict:
     """Initialise une nouvelle session d'orientation et renvoie la première question."""
     invalides = [d for d in departements if d not in tous_les_departements]
     if invalides:
         raise ValueError(f"Départements inconnus : {', '.join(invalides)}")
-    if not nb_questions_min_borne <= nb_questions <= nb_questions_max:
-        raise ValueError(f"Le nombre de questions doit être entre {nb_questions_min_borne} et {nb_questions_max}.")
+    if not nb_questions_min_borne <= nb_questions <= nb_questions_max_borne:
+        raise ValueError(f"Le nombre de questions doit être entre {nb_questions_min_borne} et {nb_questions_max_borne}.")
 
     session_id = uuid4().hex
     session = {
         "id": session_id,
         "departements": departements,
-        "nb_questions_min": nb_questions,
+        "nb_questions": nb_questions,
         "etat": creer_etat(),
         "payload": construire_payload(departements, preferences, nb_questions),
         "question_en_attente": None,
+        "en_cours": False,
     }
     sessions[session_id] = session
     return _avancer_session(session)
@@ -457,11 +460,17 @@ def demarrer_session(
 
 def repondre(session_id: str, numeros: list[int]) -> dict:
     """Enregistre le numéro choisi pour la question en cours et avance la session."""
+    session = sessions[session_id]
+    if "resultat" in session:
+        return {"session_id": session_id, "fini": True, "resultat": session["resultat"]}
+
     if len(numeros) != 1:
         raise ValueError("Une seule réponse est attendue.")
     numero = numeros[0]
 
-    session = sessions[session_id]
+    if session.get("en_cours"):
+        raise ValueError("Une réponse est déjà en cours de traitement.")
+
     question = session.get("question_en_attente")
     if question is None:
         raise ValueError("Aucune question en attente pour cette session.")
@@ -470,35 +479,39 @@ def repondre(session_id: str, numeros: list[int]) -> dict:
     if not 1 <= numero <= len(options):
         raise ValueError(f"Choix invalide : il faut un numéro entre 1 et {len(options)}.")
 
-    etat = session["etat"]
-    etat["compteur_questions"] += 1
-    etat["categories_couvertes"].add(question["categorie"])
+    session["en_cours"] = True
+    try:
+        etat = session["etat"]
+        etat["compteur_questions"] += 1
+        etat["categories_couvertes"].add(question["categorie"])
 
-    reponse = options[numero - 1]
-    etat["historique"].append({
-        "numero": question["numero"],
-        "type": question["type"],
-        "categorie": question["categorie"],
-        "texte": question["texte"],
-        "options": options,
-        "reponse": reponse,
-    })
+        reponse = options[numero - 1]
+        etat["historique"].append({
+            "numero": question["numero"],
+            "type": question["type"],
+            "categorie": question["categorie"],
+            "texte": question["texte"],
+            "options": options,
+            "reponse": reponse,
+        })
 
-    resultat_outil = {
-        "type": question["type"],
-        "categorie": question["categorie"],
-        "question": question["texte"],
-        "reponse": reponse,
-        **etat_questionnaire(etat, session["nb_questions_min"]),
-    }
-    if question["type"] == "echelle":
-        resultat_outil["niveau_sur_4"] = numero
+        resultat_outil = {
+            "type": question["type"],
+            "categorie": question["categorie"],
+            "question": question["texte"],
+            "reponse": reponse,
+            **etat_questionnaire(etat, session["nb_questions"]),
+        }
+        if question["type"] == "echelle":
+            resultat_outil["niveau_sur_4"] = numero
 
-    session["question_en_attente"] = None
-    session["payload"]["input"].append({
-        "type": "function_call_output",
-        "call_id": question["call_id"],
-        "output": json.dumps(resultat_outil, ensure_ascii=False),
-    })
+        session["question_en_attente"] = None
+        session["payload"]["input"].append({
+            "type": "function_call_output",
+            "call_id": question["call_id"],
+            "output": json.dumps(resultat_outil, ensure_ascii=False),
+        })
 
-    return _avancer_session(session)
+        return _avancer_session(session)
+    finally:
+        session["en_cours"] = False

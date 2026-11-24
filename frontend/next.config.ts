@@ -15,6 +15,15 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  /*ajout*/
+  async rewrites() {
+    return [
+      {
+        source: "/api/orientation/:path*",
+        destination: "http://127.0.0.1:8000/api/orientation/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
