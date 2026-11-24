@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -9,6 +10,8 @@ from typing import Any, Protocol
 from app.config import Settings
 
 from .tools import ToolContext, ToolError, ToolRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class ResponsesClient(Protocol):
@@ -72,6 +75,11 @@ class AssistantService:
                     tools=self.registry.definitions(),
                 )
             except Exception as error:
+                logger.exception(
+                    "AI provider request failed: %s: %s",
+                    type(error).__name__,
+                    error,
+                )
                 raise AssistantError(
                     "The AI provider request failed.",
                     code="provider_error",

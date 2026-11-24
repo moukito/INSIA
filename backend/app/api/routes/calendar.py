@@ -17,7 +17,15 @@ from pydantic import BaseModel, HttpUrl
 
 from app.config import Settings
 from app.repositories import EventRepository
-from app.schemas import EventCreate, EventRead, EventUpdate, ImportResult, SyncResult
+from app.schemas import (
+    CourseChoiceRead,
+    CourseChoiceUpdate,
+    EventCreate,
+    EventRead,
+    EventUpdate,
+    ImportResult,
+    SyncResult,
+)
 from app.services import CalendarService
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
@@ -144,3 +152,35 @@ async def synchronize_events(
         removed=len(changes.removed),
         unknown_courses=changes.unknown_courses,
     )
+
+
+@router.get(
+    "/sources/{source_key}/courses",
+    response_model=list[CourseChoiceRead],
+)
+def list_course_choices(
+    source_key: str,
+    owner: Annotated[int, Depends(owner_id)],
+    service: Annotated[CalendarService, Depends(get_service)],
+) -> list[CourseChoiceRead]:
+    return [
+        CourseChoiceRead(course=course, enabled=enabled)
+        for course, enabled in sorted(
+            service.repository.course_choices(owner, source_key).items()
+        )
+    ]
+
+
+@router.patch(
+    "/sources/{source_key}/courses/{course}",
+    response_model=CourseChoiceRead,
+)
+def update_course_choice(
+    source_key: str,
+    course: str,
+    payload: CourseChoiceUpdate,
+    owner: Annotated[int, Depends(owner_id)],
+    service: Annotated[CalendarService, Depends(get_service)],
+) -> CourseChoiceRead:
+    service.repository.set_course_choice(owner, source_key, course, payload.enabled)
+    return CourseChoiceRead(course=course, enabled=payload.enabled)

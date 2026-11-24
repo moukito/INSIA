@@ -1,49 +1,52 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  CalendarDays,
-  CheckSquare,
-  Mail,
-  Compass,
-  Users,
-  Settings,
-  Search,
-  Bell,
-  ChevronRight,
-  Clock,
-  MapPin,
-  ArrowUpRight,
-  Circle,
-  CheckCircle2,
-  Sparkles,
-  GraduationCap,
-  Plus,
-  Menu,
-  X,
-  BookOpen,
-  MoreHorizontal,
-  Briefcase,
   AlertTriangle,
+  ArrowUpRight,
+  BookOpen,
+  Briefcase,
+  Building2,
+  Calendar,
+  CalendarDays,
+  CheckCircle2,
+  CheckSquare,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Circle,
+  Clock,
+  Compass,
+  FileText,
+  Filter,
+  GraduationCap,
+  Inbox,
+  Info,
+  LayoutDashboard,
+  Mail,
+  MapPin,
+  Maximize2,
+  Menu,
+  MoreHorizontal,
+  Paperclip,
+  Plus,
   RefreshCw,
   Reply,
-  Paperclip,
-  Maximize2,
-  Calendar,
-  FileText,
-  Inbox,
-  Filter,
-  Building2,
+  Search,
+  Send,
+  Settings,
+  Sparkles,
   Trash2,
-  Info,
-  ChevronDown,
-  ChevronUp,
+  Users,
+  X,
 } from "lucide-react";
-import { EmailCategory, CATEGORIES } from "@/lib/email-classifier";
+import { EmailCategory } from "@/lib/email-classifier";
 import { EmailCategoryBadge } from "@/components/EmailCategoryBadge";
 import { EmailViewerModal, EmailDetailData } from "@/components/EmailViewerModal";
 import { FormattedEmailBody } from "@/components/FormattedEmailBody";
+import { CalendarView } from "@/components/CalendarView";
+import { CalendarEvent, fetchCalendarEvents } from "@/lib/calendar-api";
 import { AssociationEvent, REAL_ASSOCIATION_EVENTS } from "@/lib/association-events";
 import { CURRENT_USER, getDeptFilterLabel, getDeptShortLabel, getPromoDisplay } from "@/lib/user-profile";
 
@@ -69,6 +72,7 @@ export interface TaskItem {
   estimatedTime?: string;
 }
 
+// Événements associatifs ajoutés au planning (les cours viennent du calendrier réel)
 export interface ScheduleItem {
   id: number;
   eventId?: number;
@@ -134,57 +138,6 @@ const initialTasks: TaskItem[] = [
   },
 ];
 
-const initialScheduleItems: ScheduleItem[] = [
-  {
-    id: 101,
-    title: "Mathématiques appliquées & Signaux",
-    type: "cours",
-    organizer: "Département " + (CURRENT_USER.department ?? "INSA"),
-    time: "10:00",
-    end: "12:00",
-    date: "Aujourd'hui",
-    fullDate: "Vendredi 21 Novembre 2026",
-    place: "Amphithéâtre Marc Seguin · Bâtiment Seguin",
-    detail: "Cours magistral · Transformation de Fourier et convolution",
-    badge: "Cours obligatoire",
-    color: "bg-violet-500",
-    light: "bg-violet-50",
-    text: "text-violet-700",
-  },
-  {
-    id: 102,
-    title: "Réseaux & Protocoles IP",
-    type: "cours",
-    organizer: "Département " + (CURRENT_USER.department ?? "INSA"),
-    time: "13:30",
-    end: "15:00",
-    date: "Aujourd'hui",
-    fullDate: "Vendredi 21 Novembre 2026",
-    place: "Salle TP Réseaux 204 · Bâtiment Claude Delorme",
-    detail: "Travaux pratiques · Configuration de routeurs et routage OSPF",
-    badge: "TP noté",
-    color: "bg-blue-500",
-    light: "bg-blue-50",
-    text: "text-blue-700",
-  },
-  {
-    id: 103,
-    title: "Anglais professionnel & Débat international",
-    type: "cours",
-    organizer: "Pôle Langues & International",
-    time: "15:15",
-    end: "17:00",
-    date: "Aujourd'hui",
-    fullDate: "Vendredi 21 Novembre 2026",
-    place: "Salle René Char 102 · Centre des Humanités",
-    detail: "Cours de langue · Présentations orales et vocabulaire technique",
-    badge: "Présentiel",
-    color: "bg-emerald-500",
-    light: "bg-emerald-50",
-    text: "text-emerald-700",
-  },
-];
-
 function formatMailDate(dateStr: string | null) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -203,15 +156,29 @@ function formatMailDate(dateStr: string | null) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
+function senderInitialsOf(name: string) {
+  return (
+    name
+      .split(/[\s.@_-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase())
+      .join("") || "M"
+  );
+}
+
+type CategoryFilter = "all" | EmailCategory;
+
 export default function DashboardPage() {
+  const router = useRouter();
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks);
-  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>(initialScheduleItems);
+  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [activeNav, setActiveNav] = useState("Tableau de bord");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [assistantMessage, setAssistantMessage] = useState("");
 
-  // Événements associatifs réels extraits directement des emails Zmail INSA
+  // Événements associatifs réels extraits des emails Zmail INSA
   const [associationEvents, setAssociationEvents] = useState<AssociationEvent[]>(
     REAL_ASSOCIATION_EVENTS
   );
@@ -219,11 +186,9 @@ export default function DashboardPage() {
   const [assoSearchQuery, setAssoSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // État d'expansion des tâches (pour afficher les consignes / comment faire la tâche)
+  // Tâches
   const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null);
   const [taskFilterStatus, setTaskFilterStatus] = useState<"all" | "pending" | "done" | "urgent">("all");
-
-  // Modale d'ajout de tâche soignée
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskCourse, setNewTaskCourse] = useState("Informatique");
@@ -232,7 +197,7 @@ export default function DashboardPage() {
   const [newTaskInstructions, setNewTaskInstructions] = useState("");
   const [newTaskTime, setNewTaskTime] = useState("1h00");
 
-  // Modale d'ajout d'événement associatif
+  // Ajout d'événement associatif
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventAsso, setNewEventAsso] = useState("");
@@ -243,7 +208,7 @@ export default function DashboardPage() {
     useState<AssociationEvent["category"]>("Soirée");
   const [newEventDesc, setNewEventDesc] = useState("");
 
-  // État des emails
+  // Emails
   const [emails, setEmails] = useState<EmailItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({
@@ -259,20 +224,22 @@ export default function DashboardPage() {
   const [mailError, setMailError] = useState("");
 
   // Filtres d'emails
-  const [dashboardCategory, setDashboardCategory] =
-    useState<"all" | EmailCategory>("all");
-  const [mailboxCategory, setMailboxCategory] =
-    useState<"all" | EmailCategory>("all");
+  const [dashboardCategory, setDashboardCategory] = useState<CategoryFilter>("all");
+  const [mailboxCategory, setMailboxCategory] = useState<CategoryFilter>("all");
   const [emailSearchQuery, setEmailSearchQuery] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
 
-  // Email sélectionné pour lecture
+  // Email sélectionné
   const [selectedModalEmailId, setSelectedModalEmailId] = useState<number | null>(null);
   const [selectedMailboxEmailId, setSelectedMailboxEmailId] = useState<number | null>(null);
   const [activeDetail, setActiveDetail] = useState<EmailDetailData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [showImages, setShowImages] = useState(false);
+
+  // Calendrier réel (aperçu du jour)
+  const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
+  const [calendarPreviewError, setCalendarPreviewError] = useState("");
 
   function showToast(msg: string) {
     setToastMessage(msg);
@@ -281,7 +248,6 @@ export default function DashboardPage() {
     }, 3200);
   }
 
-  // Récupération des emails
   function fetchEmails() {
     setMailLoading(true);
     setMailError("");
@@ -306,7 +272,37 @@ export default function DashboardPage() {
     fetchEmails();
   }, []);
 
-  // Charger le détail de l'email sélectionné dans "Mes emails"
+  // Navigation via l'URL : /?view=planning, tasks, emails, orientation, associations, settings
+  useEffect(() => {
+    const view = new URLSearchParams(window.location.search).get("view");
+    const viewLabels: Record<string, string> = {
+      planning: "Mon planning",
+      tasks: "Mes tâches",
+      emails: "Mes emails",
+      orientation: "Orientation",
+      associations: "Associations",
+      settings: "Paramètres",
+    };
+    if (view && viewLabels[view]) {
+      setActiveNav(viewLabels[view]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    fetchCalendarEvents(start, end)
+      .then(setTodayEvents)
+      .catch((error: unknown) =>
+        setCalendarPreviewError(
+          error instanceof Error ? error.message : "Planning indisponible."
+        )
+      );
+  }, []);
+
+  // Détail de l'email sélectionné dans "Mes emails"
   useEffect(() => {
     if (!selectedMailboxEmailId) {
       setActiveDetail(null);
@@ -327,7 +323,7 @@ export default function DashboardPage() {
       .finally(() => setDetailLoading(false));
   }, [selectedMailboxEmailId]);
 
-  // Présélectionner le premier mail si besoin
+  // Présélectionner le premier mail
   useEffect(() => {
     if (activeNav === "Mes emails" && emails.length > 0 && !selectedMailboxEmailId) {
       setSelectedMailboxEmailId(emails[0].id);
@@ -337,6 +333,13 @@ export default function DashboardPage() {
   const completed = tasks.filter((task) => task.done).length;
   const pending = tasks.filter((task) => !task.done).length;
 
+  function sendMessage() {
+    if (!assistantMessage.trim()) return;
+    const message = assistantMessage.trim();
+    setAssistantMessage("");
+    router.push(`/assistant?message=${encodeURIComponent(message)}`);
+  }
+
   function toggleTask(id: number) {
     setTasks((current) =>
       current.map((task) =>
@@ -344,6 +347,7 @@ export default function DashboardPage() {
       )
     );
   }
+
   function deleteTask(id: number, e?: React.MouseEvent) {
     e?.stopPropagation();
     setTasks((current) => current.filter((task) => task.id !== id));
@@ -372,9 +376,6 @@ export default function DashboardPage() {
     showToast(`La tâche "${newTask.title}" a été ajoutée !`);
   }
 
-  // ==============================================================
-  // AJOUTER / RETIRER DU PLANNING DE FAÇON DYNAMIQUE
-  // ==============================================================
   function togglePlanningEvent(event: AssociationEvent) {
     const isAlreadyPlanned = scheduleItems.some((item) => item.eventId === event.id);
 
@@ -454,7 +455,6 @@ export default function DashboardPage() {
     );
   }, []);
 
-  // Filtrage des emails pour le Dashboard
   const dashboardFilteredEmails = useMemo(() => {
     let list = emails;
     if (dashboardCategory !== "all") {
@@ -463,7 +463,6 @@ export default function DashboardPage() {
     return list.slice(0, 6);
   }, [emails, dashboardCategory]);
 
-  // Filtrage des emails pour la page "Mes emails"
   const mailboxFilteredEmails = useMemo(() => {
     return emails.filter((m) => {
       const matchCat =
@@ -478,7 +477,6 @@ export default function DashboardPage() {
     });
   }, [emails, mailboxCategory, unreadOnly, emailSearchQuery]);
 
-  // Filtrage des événements pour la page "Associations"
   const filteredAssociationEvents = useMemo(() => {
     return associationEvents.filter((ev) => {
       const matchCategory =
@@ -492,12 +490,6 @@ export default function DashboardPage() {
     });
   }, [associationEvents, assoFilterCategory, assoSearchQuery]);
 
-  // Emails reçus des associations
-  const associationEmails = useMemo(() => {
-    return emails.filter((m) => m.category === "association");
-  }, [emails]);
-
-  // Filtrage des tâches avec filtres d'état
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       const matchQuery =
@@ -515,14 +507,97 @@ export default function DashboardPage() {
     });
   }, [tasks, query, taskFilterStatus]);
 
-  const navigationItems = useMemo(() => [
-    { label: "Tableau de bord", icon: LayoutDashboard },
-    { label: "Mon planning", icon: CalendarDays, count: String(scheduleItems.length) },
-    { label: "Mes tâches", icon: CheckSquare, count: String(pending) },
-    { label: "Mes emails", icon: Mail, count: unreadCount > 0 ? String(unreadCount) : undefined },
-    { label: "Orientation", icon: Compass },
-    { label: "Associations", icon: Users, count: String(associationEvents.length) },
-  ], [scheduleItems.length, pending, unreadCount, associationEvents.length]);
+  const navigationItems = useMemo(
+    () => [
+      { label: "Tableau de bord", icon: LayoutDashboard, count: undefined as string | undefined },
+      { label: "Mon planning", icon: CalendarDays, count: String(todayEvents.length + scheduleItems.length) },
+      { label: "Mes tâches", icon: CheckSquare, count: String(pending) },
+      { label: "Mes emails", icon: Mail, count: unreadCount > 0 ? String(unreadCount) : undefined },
+      { label: "Orientation", icon: Compass, count: undefined as string | undefined },
+      { label: "Associations", icon: Users, count: String(associationEvents.length) },
+    ],
+    [todayEvents.length, scheduleItems.length, pending, unreadCount, associationEvents.length]
+  );
+
+  // Onglets de catégories d'emails (partagés dashboard / boîte de réception)
+  const categoryTabs: {
+    id: EmailCategory;
+    label: string;
+    icon: React.ReactNode;
+    active: string;
+    idle: string;
+    badge: string;
+  }[] = [
+    {
+      id: "stage" as EmailCategory,
+      label: "Offres de stage",
+      icon: <Briefcase size={14} />,
+      active: "bg-emerald-600 text-white shadow-xs shadow-emerald-200",
+      idle: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+      badge: "bg-emerald-100 text-emerald-800",
+    },
+    {
+      id: "departement" as EmailCategory,
+      label: getDeptFilterLabel(),
+      icon: <Building2 size={14} />,
+      active: "bg-blue-600 text-white shadow-xs shadow-blue-200",
+      idle: "bg-blue-50 text-blue-700 hover:bg-blue-100",
+      badge: "bg-blue-100 text-blue-800",
+    },
+    {
+      id: "association" as EmailCategory,
+      label: "Associations",
+      icon: <Users size={14} />,
+      active: "bg-purple-600 text-white shadow-xs shadow-purple-200",
+      idle: "bg-purple-50 text-purple-700 hover:bg-purple-100",
+      badge: "bg-purple-100 text-purple-800",
+    },
+    {
+      id: "cours" as EmailCategory,
+      label: "Cours & Campus",
+      icon: <GraduationCap size={14} />,
+      active: "bg-amber-600 text-white shadow-xs shadow-amber-200",
+      idle: "bg-amber-50 text-amber-800 hover:bg-amber-100",
+      badge: "bg-amber-100 text-amber-900",
+    },
+  ];
+
+  function renderCategoryTabs(
+    current: CategoryFilter,
+    setCurrent: (c: CategoryFilter) => void
+  ) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setCurrent("all")}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+            current === "all"
+              ? "bg-slate-900 text-white shadow-xs"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <Inbox size={14} />
+          <span>Tous</span>
+          <span className="ml-1 opacity-75">({categoryCounts.all || emails.length})</span>
+        </button>
+        {categoryTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setCurrent(tab.id)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+              current === tab.id ? tab.active : tab.idle
+            }`}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+            <span className={`ml-1 px-1.5 rounded-full text-[10px] ${tab.badge}`}>
+              {categoryCounts[tab.id] || 0}
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f8fc] text-slate-800">
@@ -546,13 +621,10 @@ export default function DashboardPage() {
         }}
       />
 
-      {/* Modale soignée d'ajout de tâche avec consignes */}
+      {/* Modale d'ajout de tâche */}
       {isAddTaskModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div
-            className="fixed inset-0"
-            onClick={() => setIsAddTaskModalOpen(false)}
-          />
+          <div className="fixed inset-0" onClick={() => setIsAddTaskModalOpen(false)} />
           <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <div className="flex items-center gap-2">
@@ -682,10 +754,7 @@ export default function DashboardPage() {
       {/* Modale d'ajout d'événement associatif */}
       {isAddEventModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div
-            className="fixed inset-0"
-            onClick={() => setIsAddEventModalOpen(false)}
-          />
+          <div className="fixed inset-0" onClick={() => setIsAddEventModalOpen(false)} />
           <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <div className="flex items-center gap-2">
@@ -736,9 +805,7 @@ export default function DashboardPage() {
                   <select
                     value={newEventCategory}
                     onChange={(e) =>
-                      setNewEventCategory(
-                        e.target.value as AssociationEvent["category"]
-                      )
+                      setNewEventCategory(e.target.value as AssociationEvent["category"])
                     }
                     className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 outline-none focus:border-purple-500 focus:bg-white transition"
                   >
@@ -842,9 +909,7 @@ export default function DashboardPage() {
             <GraduationCap size={24} />
           </div>
           <div>
-            <p className="text-lg font-bold tracking-tight text-slate-900">
-              INSIA
-            </p>
+            <p className="text-lg font-bold tracking-tight text-slate-900">INSIA</p>
             <p className="text-xs text-slate-400">Ton campus, simplement.</p>
           </div>
           <button
@@ -907,14 +972,28 @@ export default function DashboardPage() {
             </p>
             <button
               onClick={() => {
-                setActiveNav("Tableau de bord");
                 setMobileOpen(false);
+                router.push("/assistant");
               }}
               className="mt-4 flex w-full items-center justify-between rounded-lg bg-white px-3 py-2.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
             >
-              Assistant Campus <ArrowUpRight size={15} />
+              Découvrir l'assistant <ArrowUpRight size={15} />
             </button>
           </div>
+
+          <button
+            onClick={() => {
+              setActiveNav("Paramètres");
+              setMobileOpen(false);
+            }}
+            className={`mt-4 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${
+              activeNav === "Paramètres"
+                ? "bg-indigo-50 text-indigo-700"
+                : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Settings size={19} /> Paramètres
+          </button>
 
           <div className="mt-3 flex items-center gap-3 border-t border-slate-100 px-2 pt-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-800">
@@ -1003,7 +1082,7 @@ export default function DashboardPage() {
                       onClick={() => setActiveNav("Mon planning")}
                       className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-50"
                     >
-                      Mon planning ({scheduleItems.length}) <CalendarDays size={17} />
+                      Mon planning <CalendarDays size={17} />
                     </button>
                     <button
                       onClick={() => setActiveNav("Mes tâches")}
@@ -1022,9 +1101,9 @@ export default function DashboardPage() {
               <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                   icon={<CalendarDays size={21} />}
-                  label="Événements au planning"
-                  value={String(scheduleItems.length)}
-                  caption="Cours & rendez-vous associatifs"
+                  label="Cours aujourd'hui"
+                  value={String(todayEvents.length)}
+                  caption={calendarPreviewError || "Journée bien rythmée"}
                   color="indigo"
                   onClick={() => setActiveNav("Mon planning")}
                 />
@@ -1054,14 +1133,12 @@ export default function DashboardPage() {
                 />
               </section>
 
-              {/* SECTION EMAILS RÉCENTS SÉPARÉS PAR CATÉGORIES */}
+              {/* Emails récents par catégorie */}
               <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                 <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-slate-900 text-base">
-                        Mes emails récents
-                      </h3>
+                      <h3 className="font-bold text-slate-900 text-base">Mes emails récents</h3>
                       <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
                         Zmail INSA Lyon
                       </span>
@@ -1080,150 +1157,85 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
-                <div className="mb-5 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
-                  <button
-                    onClick={() => setDashboardCategory("all")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                      dashboardCategory === "all"
-                        ? "bg-slate-900 text-white shadow-xs"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    <Inbox size={14} />
-                    <span>Tous</span>
-                    <span className="ml-1 opacity-75">
-                      ({categoryCounts.all || emails.length})
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setDashboardCategory("stage")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                      dashboardCategory === "stage"
-                        ? "bg-emerald-600 text-white shadow-xs shadow-emerald-200"
-                        : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    }`}
-                  >
-                    <Briefcase size={14} />
-                    <span>Offres de stage</span>
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[10px]">
-                      {categoryCounts.stage || 0}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setDashboardCategory("departement")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                      dashboardCategory === "departement"
-                        ? "bg-blue-600 text-white shadow-xs shadow-blue-200"
-                        : "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                    }`}
-                  >
-                    <Building2 size={14} />
-                    <span>{getDeptFilterLabel()}</span>
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 text-[10px]">
-                      {categoryCounts.departement || 0}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setDashboardCategory("association")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                      dashboardCategory === "association"
-                        ? "bg-purple-600 text-white shadow-xs shadow-purple-200"
-                        : "bg-purple-50 text-purple-700 hover:bg-purple-100"
-                    }`}
-                  >
-                    <Users size={14} />
-                    <span>Associations</span>
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800 text-[10px]">
-                      {categoryCounts.association || 0}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setDashboardCategory("cours")}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-                      dashboardCategory === "cours"
-                        ? "bg-amber-600 text-white shadow-xs shadow-amber-200"
-                        : "bg-amber-50 text-amber-800 hover:bg-amber-100"
-                    }`}
-                  >
-                    <GraduationCap size={14} />
-                    <span>Cours & Campus</span>
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-900 text-[10px]">
-                      {categoryCounts.cours || 0}
-                    </span>
-                  </button>
+                <div className="mb-5 border-b border-slate-100 pb-3">
+                  {renderCategoryTabs(dashboardCategory, setDashboardCategory)}
                 </div>
+
+                {mailLoading && (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    <RefreshCw size={20} className="animate-spin mx-auto text-indigo-500 mb-2" />
+                    Chargement de tes emails...
+                  </div>
+                )}
+
+                {mailError && (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-xs">
+                    {mailError}
+                  </div>
+                )}
+
+                {!mailLoading && !mailError && dashboardFilteredEmails.length === 0 && (
+                  <p className="py-6 text-center text-xs text-slate-400">
+                    Aucun email trouvé dans cette catégorie.
+                  </p>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {!mailLoading &&
                     !mailError &&
-                    dashboardFilteredEmails.map((mail) => {
-                      const senderInitials =
-                        mail.from
-                          .split(/[\s.@_-]+/)
-                          .filter(Boolean)
-                          .slice(0, 2)
-                          .map((w) => w[0]?.toUpperCase())
-                          .join("") || "M";
+                    dashboardFilteredEmails.map((mail) => (
+                      <button
+                        key={mail.id}
+                        onClick={() => setSelectedModalEmailId(mail.id)}
+                        className="group relative flex items-start gap-3 p-3.5 rounded-xl border border-slate-100 bg-white hover:border-indigo-200 hover:bg-slate-50/70 text-left transition-all shadow-2xs hover:shadow-xs"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition">
+                          {senderInitialsOf(mail.from)}
+                        </div>
 
-                      return (
-                        <button
-                          key={mail.id}
-                          onClick={() => setSelectedModalEmailId(mail.id)}
-                          className="group relative flex items-start gap-3 p-3.5 rounded-xl border border-slate-100 bg-white hover:border-indigo-200 hover:bg-slate-50/70 text-left transition-all shadow-2xs hover:shadow-xs"
-                        >
-                          <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition">
-                            {senderInitials}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="truncate text-xs font-semibold text-slate-700">
+                              {mail.from}
+                            </span>
+                            <span className="text-[10px] text-slate-400 shrink-0">
+                              {formatMailDate(mail.date)}
+                            </span>
                           </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <span className="truncate text-xs font-semibold text-slate-700">
-                                {mail.from}
-                              </span>
-                              <span className="text-[10px] text-slate-400 shrink-0">
-                                {formatMailDate(mail.date)}
-                              </span>
-                            </div>
+                          <p
+                            className={`text-xs truncate ${
+                              mail.unread ? "font-bold text-slate-900" : "text-slate-600"
+                            }`}
+                          >
+                            {mail.subject}
+                          </p>
 
-                            <p
-                              className={`text-xs truncate ${
-                                mail.unread
-                                  ? "font-bold text-slate-900"
-                                  : "text-slate-600"
-                              }`}
-                            >
-                              {mail.subject}
-                            </p>
-
-                            <div className="mt-2 flex items-center gap-2">
-                              <EmailCategoryBadge category={mail.category} size="sm" />
-                              {mail.unread && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-indigo-600">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                                  Non lu
-                                </span>
-                              )}
-                            </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <EmailCategoryBadge category={mail.category} size="sm" />
+                            {mail.unread && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-indigo-600">
+                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                                Non lu
+                              </span>
+                            )}
                           </div>
-                        </button>
-                      );
-                    })}
+                        </div>
+                      </button>
+                    ))}
                 </div>
               </section>
 
-              {/* Section Planning & Mes tâches */}
+              {/* Planning du jour & Mes tâches */}
               <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
-                {/* Aperçu du Planning */}
                 <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                   <div className="mb-6 flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-slate-900">Mon planning synchronisé</h3>
+                      <h3 className="font-bold text-slate-900">Prochains cours</h3>
                       <p className="mt-1 text-xs text-slate-400">
-                        Cours et événements associatifs ajoutés ({scheduleItems.length})
+                        Ton aperçu de la journée
+                        {scheduleItems.length > 0 &&
+                          ` · ${scheduleItems.length} événement${scheduleItems.length > 1 ? "s" : ""} associatif${scheduleItems.length > 1 ? "s" : ""} ajouté${scheduleItems.length > 1 ? "s" : ""}`}
                       </p>
                     </div>
                     <button
@@ -1235,48 +1247,70 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="space-y-3">
-                    {scheduleItems.slice(0, 4).map((item) => (
+                    {todayEvents.map((course, index) => {
+                      const start = new Date(course.start_at);
+                      const end = new Date(course.end_at);
+                      const colors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500"];
+                      return (
+                        <div
+                          key={course.id}
+                          className="group flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-indigo-100 hover:bg-slate-50 sm:gap-4 sm:p-4"
+                        >
+                          <div className="w-[58px] shrink-0">
+                            <p className="text-sm font-bold text-slate-800">
+                              {start.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                            <p className="mt-1 text-[11px] text-slate-400">
+                              {end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                          <div className={`h-11 w-1 shrink-0 rounded-full ${colors[index % colors.length]}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-slate-800">
+                              {course.title}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-400">{course.subject}</p>
+                            <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400">
+                              <MapPin size={12} /> {course.location || "Salle à confirmer"}
+                            </p>
+                          </div>
+                          <BookOpen
+                            size={18}
+                            className="hidden text-slate-300 transition group-hover:text-indigo-500 sm:block"
+                          />
+                        </div>
+                      );
+                    })}
+
+                    {scheduleItems.slice(0, 3).map((item) => (
                       <div
                         key={item.id}
-                        className="group flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-indigo-100 hover:bg-slate-50 sm:gap-4 sm:p-4"
+                        className="flex items-center gap-3 rounded-xl border border-purple-100 bg-purple-50/40 p-3 sm:gap-4 sm:p-4"
                       >
-                        <div className="w-[62px] shrink-0">
-                          <p className="text-sm font-bold text-slate-800">
-                            {item.time}
-                          </p>
-                          <p className="mt-1 text-[11px] text-slate-400">
-                            {item.end || item.date}
-                          </p>
+                        <div className="w-[58px] shrink-0">
+                          <p className="text-sm font-bold text-slate-800">{item.time}</p>
+                          <p className="mt-1 text-[11px] text-slate-400">{item.end || item.date}</p>
                         </div>
                         <div className={`h-11 w-1 shrink-0 rounded-full ${item.color}`} />
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-800">
-                              {item.title}
-                            </p>
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded-md font-semibold shrink-0 ${
-                                item.type === "association"
-                                  ? "bg-purple-50 text-purple-700 border border-purple-100"
-                                  : "bg-blue-50 text-blue-700 border border-blue-100"
-                              }`}
-                            >
-                              {item.type === "association" ? "Association" : `Cours ${getDeptShortLabel()}`}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs text-slate-400">
-                            {item.organizer} · {item.detail}
-                          </p>
+                          <p className="truncate text-sm font-semibold text-slate-800">{item.title}</p>
+                          <p className="mt-1 text-xs text-slate-400">{item.organizer} · {item.fullDate}</p>
                           <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400 truncate">
                             <MapPin size={12} className="shrink-0" /> {item.place}
                           </p>
                         </div>
                       </div>
                     ))}
+
+                    {todayEvents.length === 0 && scheduleItems.length === 0 && !calendarPreviewError && (
+                      <p className="py-5 text-center text-xs text-slate-400">
+                        Aucun cours prévu aujourd'hui.
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Aperçu des Tâches avec bouton d'ajout et progression */}
+                {/* Aperçu des tâches */}
                 <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                   <div className="mb-6 flex items-center justify-between gap-2">
                     <div>
@@ -1304,29 +1338,22 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="mb-4 flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-500">
-                      Progression
-                    </span>
+                    <span className="text-xs font-medium text-slate-500">Progression</span>
                     <span className="text-xs font-bold text-indigo-600">
-                      {tasks.length
-                        ? Math.round((completed / tasks.length) * 100)
-                        : 0}
-                      %
+                      {tasks.length ? Math.round((completed / tasks.length) * 100) : 0}%
                     </span>
                   </div>
                   <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100">
                     <div
                       className="h-full rounded-full bg-indigo-500 transition-all"
                       style={{
-                        width: `${
-                          tasks.length ? (completed / tasks.length) * 100 : 0
-                        }%`,
+                        width: `${tasks.length ? (completed / tasks.length) * 100 : 0}%`,
                       }}
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    {tasks.slice(0, 4).map((task) => (
+                    {filteredTasks.slice(0, 4).map((task) => (
                       <div
                         key={task.id}
                         className="group flex items-start gap-2.5 rounded-xl p-2.5 transition hover:bg-slate-50 border border-transparent hover:border-slate-100"
@@ -1346,14 +1373,13 @@ export default function DashboardPage() {
                         <div
                           className="min-w-0 flex-1 cursor-pointer"
                           onClick={() => {
-                            setExpandedTaskId(expandedTaskId === task.id ? null : task.id);
+                            setExpandedTaskId(task.id);
+                            setActiveNav("Mes tâches");
                           }}
                         >
                           <p
                             className={`text-xs font-medium leading-5 ${
-                              task.done
-                                ? "text-slate-400 line-through"
-                                : "text-slate-800"
+                              task.done ? "text-slate-400 line-through" : "text-slate-800"
                             }`}
                           >
                             {task.title}
@@ -1362,8 +1388,8 @@ export default function DashboardPage() {
                             <span>{task.course}</span>
                             <span>·</span>
                             <span>{task.due}</span>
-                            {task.priority === "Urgent" && (
-                              <span className="rounded bg-rose-50 px-1.5 py-0.2 text-[10px] font-bold text-rose-600">
+                            {task.priority === "Urgent" && !task.done && (
+                              <span className="rounded bg-rose-50 px-1.5 text-[10px] font-bold text-rose-600">
                                 Urgent
                               </span>
                             )}
@@ -1371,11 +1397,16 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     ))}
+                    {filteredTasks.length === 0 && (
+                      <p className="py-5 text-center text-xs text-slate-400">
+                        Aucune tâche trouvée.
+                      </p>
+                    )}
                   </div>
                 </div>
               </section>
 
-              {/* SECTION ÉVÉNEMENTS ASSOCIATIFS SUR LE DASHBOARD */}
+              {/* Événements associatifs */}
               <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                 <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
@@ -1385,7 +1416,7 @@ export default function DashboardPage() {
                         Événements associatifs à venir
                       </h3>
                       <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-700 border border-purple-200">
-                        {associationEvents.length} événements réels
+                        {associationEvents.length} événements
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-400">
@@ -1442,9 +1473,7 @@ export default function DashboardPage() {
                             </div>
                             <div className="flex items-center gap-2 text-slate-600">
                               <Clock size={14} className="text-indigo-600 shrink-0" />
-                              <span className="font-semibold text-slate-700">
-                                {event.time}
-                              </span>
+                              <span className="font-semibold text-slate-700">{event.time}</span>
                             </div>
                             <div className="flex items-start gap-2 text-slate-600">
                               <MapPin size={14} className="text-rose-500 shrink-0 mt-0.5" />
@@ -1496,53 +1525,75 @@ export default function DashboardPage() {
                   })}
                 </div>
               </section>
+
+              {/* Assistant étudiant */}
+              <section className="relative overflow-hidden rounded-2xl bg-white p-5 shadow-sm ring-1 ring-violet-100 sm:p-6">
+                <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-violet-100/70 blur-2xl" />
+                <div className="relative flex flex-col gap-4 md:flex-row md:items-center">
+                  <div className="flex items-center gap-4 md:w-1/2">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700">
+                      <Sparkles size={23} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">Ton assistant étudiant</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Une question sur ton stage, tes cours ou la vie étudiante ?
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 focus-within:border-violet-300 focus-within:ring-2 focus-within:ring-violet-100">
+                    <input
+                      value={assistantMessage}
+                      onChange={(event) => setAssistantMessage(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") sendMessage();
+                      }}
+                      placeholder="Pose ta question..."
+                      className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs outline-none placeholder:text-slate-400"
+                    />
+                    <button
+                      onClick={sendMessage}
+                      aria-label="Envoyer"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white transition hover:bg-violet-700"
+                    >
+                      <Send size={16} />
+                    </button>
+                  </div>
+                </div>
+              </section>
             </>
           )}
 
           {/* ============================================================== */}
-          {/* VUE 2 : MON PLANNING (COURS + ÉVÉNEMENTS ASSOCIATIFS AJOUTÉS) */}
+          {/* VUE 2 : MON PLANNING (calendrier réel + événements associatifs) */}
           {/* ============================================================== */}
           {activeNav === "Mon planning" && (
             <div className="space-y-6">
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-600 to-violet-600 p-6 text-white shadow-xl shadow-indigo-100 sm:p-8">
-                <div className="relative max-w-2xl">
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-blue-100">
-                    <CalendarDays size={14} /> Emploi du temps & Agenda INSA
-                  </div>
-                  <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                    Mon planning des cours & événements
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-blue-100 sm:text-base">
-                    Retrouve ici tes cours magistraux, TP notés ainsi que les événements associatifs que tu as ajoutés directement au planning.
-                  </p>
-                  <div className="mt-5 flex flex-wrap items-center gap-3">
-                    <button
-                      onClick={() => setActiveNav("Associations")}
-                      className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-indigo-700 shadow-sm transition hover:bg-blue-50"
-                    >
-                      <Plus size={16} /> Explorer et ajouter des événements associatifs
-                    </button>
-                    <button
-                      onClick={() => setActiveNav("Tableau de bord")}
-                      className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white border border-white/25 transition hover:bg-white/25"
-                    >
-                      Retour au tableau de bord
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <CalendarView />
 
-              {/* Liste complète du planning */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="font-bold text-slate-900 text-base">
-                    Tous les créneaux programmés ({scheduleItems.length})
-                  </h3>
-                  <span className="text-xs text-slate-400">
-                    {scheduleItems.filter((i) => i.type === "cours").length} cours ·{" "}
-                    {scheduleItems.filter((i) => i.type === "association").length} associatif(s)
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">
+                      Événements associatifs ajoutés ({scheduleItems.length})
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Ajoute des événements depuis le menu Associations.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveNav("Associations")}
+                    className="inline-flex items-center gap-2 rounded-xl bg-purple-50 px-3 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-100 transition"
+                  >
+                    <Plus size={14} /> Explorer les événements
+                  </button>
                 </div>
+
+                {scheduleItems.length === 0 && (
+                  <p className="py-4 text-center text-xs text-slate-400">
+                    Aucun événement associatif au planning pour l'instant.
+                  </p>
+                )}
 
                 <div className="space-y-3">
                   {scheduleItems.map((item) => (
@@ -1552,12 +1603,8 @@ export default function DashboardPage() {
                     >
                       <div className="flex items-start gap-4">
                         <div className="w-20 shrink-0">
-                          <p className="text-sm font-bold text-slate-900">
-                            {item.time}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {item.end ? `à ${item.end}` : ""}
-                          </p>
+                          <p className="text-sm font-bold text-slate-900">{item.time}</p>
+                          <p className="text-xs text-slate-400">{item.end ? `à ${item.end}` : ""}</p>
                           <span className="mt-1 inline-block text-[10px] font-semibold text-slate-500">
                             {item.date}
                           </span>
@@ -1567,24 +1614,14 @@ export default function DashboardPage() {
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm font-bold text-slate-900">
-                              {item.title}
-                            </h4>
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${
-                                item.type === "association"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-blue-100 text-blue-800"
-                              }`}
-                            >
-                              {item.type === "association" ? "Événement Associatif" : `Cours ${CURRENT_USER.promo || getDeptShortLabel()}`}
+                            <h4 className="text-sm font-bold text-slate-900">{item.title}</h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-purple-100 text-purple-800">
+                              Événement Associatif
                             </span>
                           </div>
-
                           <p className="text-xs text-slate-600 mt-0.5">
                             <strong>{item.organizer}</strong> · {item.detail}
                           </p>
-
                           <p className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
                             <MapPin size={13} className="text-rose-500 shrink-0" />
                             <span>{item.place}</span>
@@ -1592,21 +1629,17 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                        {item.type === "association" && (
-                          <button
-                            onClick={() => {
-                              setScheduleItems((prev) => prev.filter((i) => i.id !== item.id));
-                              showToast(`"${item.title}" a été retiré du planning.`);
-                            }}
-                            className="inline-flex items-center gap-1 text-xs text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50 transition"
-                            title="Retirer du planning"
-                          >
-                            <Trash2 size={14} />
-                            <span>Retirer</span>
-                          </button>
-                        )}
-                      </div>
+                      <button
+                        onClick={() => {
+                          setScheduleItems((prev) => prev.filter((i) => i.id !== item.id));
+                          showToast(`"${item.title}" a été retiré du planning.`);
+                        }}
+                        className="inline-flex items-center gap-1 self-end sm:self-center text-xs text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50 transition"
+                        title="Retirer du planning"
+                      >
+                        <Trash2 size={14} />
+                        <span>Retirer</span>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1615,11 +1648,10 @@ export default function DashboardPage() {
           )}
 
           {/* ============================================================== */}
-          {/* VUE 3 : MES TÂCHES AVEC PRÉSENTATION COMPLÈTE ET CONSIGNES     */}
+          {/* VUE 3 : MES TÂCHES                                             */}
           {/* ============================================================== */}
           {activeNav === "Mes tâches" && (
             <div className="space-y-6">
-              {/* En-tête des tâches */}
               <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 p-6 text-white shadow-xl shadow-emerald-100 sm:p-8">
                 <div className="relative max-w-2xl">
                   <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-emerald-100">
@@ -1648,7 +1680,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Barre de progression & Filtres d'état */}
               <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
@@ -1659,7 +1690,6 @@ export default function DashboardPage() {
                       Clique sur une tâche pour afficher comment la réaliser et ses consignes détaillées.
                     </p>
                   </div>
-
                   <span className="text-lg font-black text-indigo-600">
                     {tasks.length ? Math.round((completed / tasks.length) * 100) : 0}%
                   </span>
@@ -1668,13 +1698,10 @@ export default function DashboardPage() {
                 <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all"
-                    style={{
-                      width: `${tasks.length ? (completed / tasks.length) * 100 : 0}%`,
-                    }}
+                    style={{ width: `${tasks.length ? (completed / tasks.length) * 100 : 0}%` }}
                   />
                 </div>
 
-                {/* Filtres de statut */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
                   <div className="flex flex-wrap items-center gap-2">
                     {[
@@ -1711,7 +1738,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Liste détaillée des tâches */}
               <div className="space-y-3">
                 {filteredTasks.map((task) => {
                   const isExpanded = expandedTaskId === task.id;
@@ -1729,7 +1755,6 @@ export default function DashboardPage() {
                     >
                       <div className="p-4 sm:p-5">
                         <div className="flex items-start gap-3.5">
-                          {/* Case à cocher */}
                           <button
                             type="button"
                             onClick={() => toggleTask(task.id)}
@@ -1743,17 +1768,12 @@ export default function DashboardPage() {
                             )}
                           </button>
 
-                          {/* Titre & métadonnées */}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap mb-1">
                               <h4
-                                onClick={() =>
-                                  setExpandedTaskId(isExpanded ? null : task.id)
-                                }
+                                onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
                                 className={`text-sm sm:text-base font-bold cursor-pointer hover:text-indigo-600 transition ${
-                                  task.done
-                                    ? "text-slate-400 line-through"
-                                    : "text-slate-900"
+                                  task.done ? "text-slate-400 line-through" : "text-slate-900"
                                 }`}
                               >
                                 {task.title}
@@ -1786,12 +1806,9 @@ export default function DashboardPage() {
                             </div>
                           </div>
 
-                          {/* Bouton déplier consignes & supprimer */}
                           <div className="flex items-center gap-1 shrink-0">
                             <button
-                              onClick={() =>
-                                setExpandedTaskId(isExpanded ? null : task.id)
-                              }
+                              onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
                               title="Voir les consignes"
                               className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition"
                             >
@@ -1807,7 +1824,6 @@ export default function DashboardPage() {
                           </div>
                         </div>
 
-                        {/* SECTION DÉTAILLÉE : COMMENT FAIRE CETTE TÂCHE / CONSIGNES */}
                         {isExpanded && (
                           <div className="mt-4 pt-3 border-t border-slate-100 text-xs">
                             <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-100 space-y-2">
@@ -1843,11 +1859,10 @@ export default function DashboardPage() {
           )}
 
           {/* ============================================================== */}
-          {/* VUE 4 : MENU ASSOCIATIONS DÉDIÉ (ÉVÉNEMENTS : DATE, HEURE, LIEU)*/}
+          {/* VUE 4 : ASSOCIATIONS                                           */}
           {/* ============================================================== */}
           {activeNav === "Associations" && (
             <div className="space-y-6">
-              {/* En-tête de la page Associations */}
               <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-700 via-purple-600 to-indigo-600 p-6 text-white shadow-xl shadow-purple-100 sm:p-8">
                 <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full border-[36px] border-white/5" />
                 <div className="relative max-w-2xl">
@@ -1877,7 +1892,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Bannière explicative sur l'origine réelle des événements */}
               <div className="rounded-2xl border border-purple-200 bg-purple-50/70 p-4 text-xs text-purple-900 flex items-start gap-3 shadow-xs">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white font-bold">
                   <Mail size={16} />
@@ -1892,7 +1906,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Barre de filtres et de recherche */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   {[
@@ -1923,10 +1936,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="relative">
-                  <Search
-                    size={15}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     value={assoSearchQuery}
                     onChange={(e) => setAssoSearchQuery(e.target.value)}
@@ -1936,7 +1946,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Grille principale des événements associatifs */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredAssociationEvents.map((event) => {
                   const isPlanned = scheduleItems.some((item) => item.eventId === event.id);
@@ -1947,26 +1956,19 @@ export default function DashboardPage() {
                       className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:border-purple-200 hover:shadow-md transition duration-200"
                     >
                       <div>
-                        {/* En-tête : Badge Date (jour + mois) et badge statut */}
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div
                             className={`flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border ${event.color}`}
                           >
-                            <span className="text-xl font-black leading-none">
-                              {event.day}
-                            </span>
-                            <span className="mt-1 text-[10px] font-bold tracking-wider">
-                              {event.month}
-                            </span>
+                            <span className="text-xl font-black leading-none">{event.day}</span>
+                            <span className="mt-1 text-[10px] font-bold tracking-wider">{event.month}</span>
                           </div>
 
                           <div className="flex flex-col items-end gap-1">
                             <span className="rounded-md bg-purple-50 px-2.5 py-0.5 text-xs font-bold text-purple-700 border border-purple-200">
                               {event.association}
                             </span>
-                            <span className="text-[10px] font-semibold text-slate-500">
-                              {event.badge}
-                            </span>
+                            <span className="text-[10px] font-semibold text-slate-500">{event.badge}</span>
                           </div>
                         </div>
 
@@ -1978,36 +1980,26 @@ export default function DashboardPage() {
                           {event.description}
                         </p>
 
-                        {/* BLOC : DATE, HEURE ET PLACE CLAIREMENT REGROUPÉES */}
                         <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 space-y-2 mb-4 text-xs">
                           <div className="flex items-center gap-2 text-slate-700 font-semibold">
                             <Calendar size={15} className="text-purple-600 shrink-0" />
                             <span>{event.fullDate}</span>
                           </div>
-
                           <div className="flex items-center gap-2 text-slate-700 font-medium">
                             <Clock size={15} className="text-indigo-600 shrink-0" />
                             <span>
-                              Horaire :{" "}
-                              <strong className="text-slate-900 font-bold">
-                                {event.time}
-                              </strong>
+                              Horaire : <strong className="text-slate-900 font-bold">{event.time}</strong>
                             </span>
                           </div>
-
                           <div className="flex items-start gap-2 text-slate-700">
                             <MapPin size={15} className="text-rose-500 shrink-0 mt-0.5" />
                             <span>
-                              Lieu :{" "}
-                              <strong className="text-slate-900 font-semibold">
-                                {event.place}
-                              </strong>
+                              Lieu : <strong className="text-slate-900 font-semibold">{event.place}</strong>
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Actions de l'événement */}
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
                         {event.emailId > 0 && (
                           <button
@@ -2024,29 +2016,27 @@ export default function DashboardPage() {
                           </button>
                         )}
 
-                        <div className="flex items-center gap-2 ml-auto">
-                          <button
-                            type="button"
-                            onClick={() => togglePlanningEvent(event)}
-                            className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-xl border transition cursor-pointer ${
-                              isPlanned
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                                : "bg-indigo-50 border-indigo-100 text-indigo-700 hover:bg-indigo-100"
-                            }`}
-                          >
-                            {isPlanned ? (
-                              <>
-                                <CheckCircle2 size={13} className="text-emerald-600" />
-                                <span>Au planning ✓</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus size={13} />
-                                <span>Ajouter au planning</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => togglePlanningEvent(event)}
+                          className={`ml-auto inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-xl border transition cursor-pointer ${
+                            isPlanned
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                              : "bg-indigo-50 border-indigo-100 text-indigo-700 hover:bg-indigo-100"
+                          }`}
+                        >
+                          {isPlanned ? (
+                            <>
+                              <CheckCircle2 size={13} className="text-emerald-600" />
+                              <span>Au planning ✓</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus size={13} />
+                              <span>Ajouter au planning</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   );
@@ -2072,9 +2062,7 @@ export default function DashboardPage() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold text-slate-900">
-                      Boîte de réception
-                    </h2>
+                    <h2 className="text-xl font-bold text-slate-900">Boîte de réception</h2>
                     <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
                       INSA Lyon Zmail
                     </span>
@@ -2086,10 +2074,7 @@ export default function DashboardPage() {
 
                 <div className="flex flex-wrap items-center gap-2.5">
                   <div className="relative">
-                    <Search
-                      size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       value={emailSearchQuery}
                       onChange={(e) => setEmailSearchQuery(e.target.value)}
@@ -2123,93 +2108,20 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Onglets de catégories */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => setMailboxCategory("all")}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
-                    mailboxCategory === "all"
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  <Inbox size={14} />
-                  <span>Tous</span>
-                  <span className="opacity-75">
-                    ({categoryCounts.all || emails.length})
-                  </span>
-                </button>
+              {renderCategoryTabs(mailboxCategory, setMailboxCategory)}
 
-                <button
-                  onClick={() => setMailboxCategory("stage")}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
-                    mailboxCategory === "stage"
-                      ? "bg-emerald-600 text-white shadow-xs shadow-emerald-200"
-                      : "bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                  }`}
-                >
-                  <Briefcase size={14} />
-                  <span>Offres de stage</span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px]">
-                    {categoryCounts.stage || 0}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setMailboxCategory("departement")}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
-                    mailboxCategory === "departement"
-                      ? "bg-blue-600 text-white shadow-xs shadow-blue-200"
-                      : "bg-white border border-blue-200 text-blue-700 hover:bg-blue-50"
-                  }`}
-                >
-                  <Building2 size={14} />
-                  <span>{getDeptFilterLabel()}</span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px]">
-                    {categoryCounts.departement || 0}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setMailboxCategory("association")}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
-                    mailboxCategory === "association"
-                      ? "bg-purple-600 text-white shadow-xs shadow-purple-200"
-                      : "bg-white border border-purple-200 text-purple-700 hover:bg-purple-50"
-                  }`}
-                >
-                  <Users size={14} />
-                  <span>Associations</span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px]">
-                    {categoryCounts.association || 0}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setMailboxCategory("cours")}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
-                    mailboxCategory === "cours"
-                      ? "bg-amber-600 text-white shadow-xs shadow-amber-200"
-                      : "bg-white border border-amber-200 text-amber-800 hover:bg-amber-50"
-                  }`}
-                >
-                  <GraduationCap size={14} />
-                  <span>Cours & Campus</span>
-                  <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px]">
-                    {categoryCounts.cours || 0}
-                  </span>
-                </button>
-              </div>
-
-              {/* Disposition 2 colonnes */}
               <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4 items-start">
-                {/* Colonne de gauche : Liste des emails */}
+                {/* Liste des emails */}
                 <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-xs max-h-[750px] overflow-y-auto space-y-1.5">
                   {mailLoading && (
                     <div className="py-12 text-center text-xs text-slate-400">
                       <RefreshCw size={22} className="animate-spin mx-auto text-indigo-500 mb-2" />
                       Synchronisation des emails...
                     </div>
+                  )}
+
+                  {mailError && (
+                    <div className="p-4 rounded-xl bg-rose-50 text-rose-600 text-xs">{mailError}</div>
                   )}
 
                   {!mailLoading && !mailError && mailboxFilteredEmails.length === 0 && (
@@ -2222,13 +2134,6 @@ export default function DashboardPage() {
                     !mailError &&
                     mailboxFilteredEmails.map((mail) => {
                       const isSelected = selectedMailboxEmailId === mail.id;
-                      const senderInitials =
-                        mail.from
-                          .split(/[\s.@_-]+/)
-                          .filter(Boolean)
-                          .slice(0, 2)
-                          .map((w) => w[0]?.toUpperCase())
-                          .join("") || "M";
 
                       return (
                         <div
@@ -2250,13 +2155,11 @@ export default function DashboardPage() {
                               }`}
                             />
                             <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center shrink-0">
-                              {senderInitials}
+                              {senderInitialsOf(mail.from)}
                             </div>
                             <span
                               className={`truncate text-xs ${
-                                mail.unread
-                                  ? "font-bold text-slate-900"
-                                  : "font-semibold text-slate-700"
+                                mail.unread ? "font-bold text-slate-900" : "font-semibold text-slate-700"
                               }`}
                             >
                               {mail.from}
@@ -2268,9 +2171,7 @@ export default function DashboardPage() {
 
                           <p
                             className={`text-xs truncate pl-4 ${
-                              mail.unread
-                                ? "font-bold text-slate-900"
-                                : "text-slate-600"
+                              mail.unread ? "font-bold text-slate-900" : "text-slate-600"
                             }`}
                           >
                             {mail.subject}
@@ -2294,7 +2195,7 @@ export default function DashboardPage() {
                     })}
                 </div>
 
-                {/* Colonne de droite : Aperçu complet du mail */}
+                {/* Aperçu complet du mail */}
                 <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs min-h-[600px]">
                   {detailLoading && (
                     <div className="space-y-6 py-8 animate-pulse">
@@ -2313,15 +2214,17 @@ export default function DashboardPage() {
                     </div>
                   )}
 
+                  {detailError && (
+                    <div className="p-8 text-center text-rose-600 text-xs">{detailError}</div>
+                  )}
+
                   {!detailLoading && !detailError && activeDetail && (
                     <div className="space-y-5">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-100 pb-4">
                         <div className="space-y-2 min-w-0">
                           <div className="flex items-center gap-2">
                             <EmailCategoryBadge category={activeDetail.category} size="md" />
-                            <span className="text-xs text-slate-400">
-                              ID #{activeDetail.id}
-                            </span>
+                            <span className="text-xs text-slate-400">ID #{activeDetail.id}</span>
                           </div>
                           <h3 className="text-xl font-bold tracking-tight text-slate-900 leading-snug">
                             {activeDetail.subject || "(Sans objet)"}
@@ -2353,12 +2256,7 @@ export default function DashboardPage() {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-100">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                            {(activeDetail.from.name || activeDetail.from.address)
-                              .split(/[\s.@_-]+/)
-                              .filter(Boolean)
-                              .slice(0, 2)
-                              .map((w) => w[0]?.toUpperCase())
-                              .join("") || "M"}
+                            {senderInitialsOf(activeDetail.from.name || activeDetail.from.address)}
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-bold text-slate-800 truncate">
@@ -2367,6 +2265,11 @@ export default function DashboardPage() {
                             <p className="text-xs text-slate-500 truncate">
                               &lt;{activeDetail.from.address}&gt;
                             </p>
+                            {activeDetail.to && activeDetail.to.length > 0 && (
+                              <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                                À : {activeDetail.to.map((t) => t.name || t.address).join(", ")}
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -2378,6 +2281,7 @@ export default function DashboardPage() {
                                   weekday: "short",
                                   day: "numeric",
                                   month: "short",
+                                  year: "numeric",
                                   hour: "2-digit",
                                   minute: "2-digit",
                                 })
@@ -2386,7 +2290,6 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      {/* Pièces jointes */}
                       {activeDetail.attachments && activeDetail.attachments.length > 0 && (
                         <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3">
                           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
@@ -2428,6 +2331,9 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium text-slate-600">
                         Sélectionne un email pour le lire
                       </p>
+                      <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                        Clique sur n'importe quel message à gauche pour afficher sa mise en page complète et lisible.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -2435,18 +2341,26 @@ export default function DashboardPage() {
             </section>
           )}
 
+          {/* Paramètres */}
+          {activeNav === "Paramètres" && (
+            <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-sm space-y-2">
+              <h2 className="text-xl font-bold text-slate-900">Paramètres</h2>
+              <p className="text-xs text-slate-500">
+                Les paramètres du compte seront disponibles prochainement.
+              </p>
+            </div>
+          )}
+
           {/* Orientation */}
           {activeNav === "Orientation" && (
             <div className="rounded-3xl bg-white p-6 border border-slate-200 shadow-sm space-y-4">
-              <h2 className="text-xl font-bold text-slate-900">
-                Orientation & Carrières
-              </h2>
+              <h2 className="text-xl font-bold text-slate-900">Orientation & Carrières</h2>
               <p className="text-xs text-slate-500">
                 Retrouve ici les offres de stage PFE, les plateformes partenaires (JobTeaser, HelloWork) et les forums entreprises INSA.
               </p>
               <button
                 onClick={() => {
-                  setMailboxCategory("stage");
+                  setMailboxCategory("stage" as EmailCategory);
                   setActiveNav("Mes emails");
                 }}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold"
@@ -2468,6 +2382,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 function StatCard({
   icon,
   label,
@@ -2516,9 +2431,7 @@ function StatCard({
       </div>
       <p className="mt-5 text-sm text-slate-500">{label}</p>
       <div className="mt-1 flex items-end justify-between gap-2">
-        <p className="text-3xl font-bold tracking-tight text-slate-900">
-          {value}
-        </p>
+        <p className="text-3xl font-bold tracking-tight text-slate-900">{value}</p>
         <span className="mb-1 flex items-center gap-1 text-[10px] text-slate-400">
           <Clock size={12} /> Aujourd'hui
         </span>
