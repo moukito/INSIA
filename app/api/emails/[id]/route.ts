@@ -2,11 +2,21 @@ import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import sanitizeHtml from "sanitize-html";
 import { classifyEmail } from "@/lib/email-classifier";
+import {
+  authenticateRequest,
+  authorizeMailboxUser,
+} from "@/lib/supabase-server";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await authenticateRequest(request);
+  if (!auth.ok) return auth.response;
+
+  const mailboxAccessError = authorizeMailboxUser(auth.user);
+  if (mailboxAccessError) return mailboxAccessError;
+
   const { id } = await params;
   const uid = Number(id);
 

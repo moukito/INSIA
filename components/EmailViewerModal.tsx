@@ -18,6 +18,7 @@ import {
 import { EmailCategoryBadge } from "./EmailCategoryBadge";
 import { FormattedEmailBody } from "./FormattedEmailBody";
 import { EmailCategory } from "@/lib/email-classifier";
+import { authenticatedFetch } from "@/lib/supabase-browser";
 
 export interface EmailDetailData {
   id: number;
@@ -79,7 +80,7 @@ export function EmailViewerModal({
     setData(null);
     setShowImages(false);
 
-    fetch(`/api/emails/${emailId}`)
+    authenticatedFetch(`/api/emails/${emailId}`)
       .then((res) => {
         if (!res.ok) throw new Error("Erreur de récupération de l'email depuis Zmail.");
         return res.json();

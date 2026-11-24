@@ -8,7 +8,7 @@ import {
   Mail,
   Compass,
   Users,
-  Settings,
+  LogOut,
   Search,
   Bell,
   ChevronRight,
@@ -44,6 +44,10 @@ import { EmailCategory, CATEGORIES } from "@/lib/email-classifier";
 import { EmailCategoryBadge } from "@/components/EmailCategoryBadge";
 import { EmailViewerModal, EmailDetailData } from "@/components/EmailViewerModal";
 import { FormattedEmailBody } from "@/components/FormattedEmailBody";
+import { AssistantPanel } from "@/components/AssistantPanel";
+import { SupabaseAuthGate, useSupabaseAuth } from "@/components/SupabaseAuthGate";
+import { authenticatedFetch } from "@/lib/supabase-browser";
+import type { AssistantScheduleItem } from "@/lib/assistant-types";
 import { AssociationEvent, REAL_ASSOCIATION_EVENTS } from "@/lib/association-events";
 import { CURRENT_USER, getDeptFilterLabel, getDeptShortLabel, getPromoDisplay } from "@/lib/user-profile";
 
@@ -69,22 +73,57 @@ export interface TaskItem {
   estimatedTime?: string;
 }
 
-export interface ScheduleItem {
-  id: number;
-  eventId?: number;
-  title: string;
-  type: "cours" | "association" | "personnel";
-  organizer: string;
-  time: string;
-  end: string;
-  date: string;
-  fullDate: string;
-  place: string;
-  detail: string;
-  badge: string;
-  color: string;
-  light: string;
-  text: string;
+export type ScheduleItem = AssistantScheduleItem;
+
+function isTaskItem(value: unknown): value is TaskItem {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const task = value as Record<string, unknown>;
+  return (
+    Number.isSafeInteger(task.id) &&
+    typeof task.title === "string" &&
+    typeof task.course === "string" &&
+    typeof task.due === "string" &&
+    ["Urgent", "Normal", "Faible"].includes(String(task.priority)) &&
+    typeof task.done === "boolean" &&
+    (task.instructions === undefined || typeof task.instructions === "string") &&
+    (task.estimatedTime === undefined || typeof task.estimatedTime === "string")
+  );
+}
+
+function isScheduleItem(value: unknown): value is ScheduleItem {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const item = value as Record<string, unknown>;
+  return (
+    Number.isSafeInteger(item.id) &&
+    (item.eventId === undefined || Number.isSafeInteger(item.eventId)) &&
+    typeof item.title === "string" &&
+    ["cours", "association", "personnel"].includes(String(item.type)) &&
+    typeof item.organizer === "string" &&
+    typeof item.time === "string" &&
+    typeof item.end === "string" &&
+    typeof item.date === "string" &&
+    typeof item.fullDate === "string" &&
+    typeof item.place === "string" &&
+    typeof item.detail === "string" &&
+    typeof item.badge === "string" &&
+    typeof item.color === "string" &&
+    typeof item.light === "string" &&
+    typeof item.text === "string"
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getApiError(value: unknown, fallback: string) {
+  return isRecord(value) && typeof value.error === "string"
+    ? value.error
+    : fallback;
 }
 
 const initialTasks: TaskItem[] = [
@@ -203,13 +242,14 @@ function formatMailDate(dateStr: string | null) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const { signOut, user } = useSupabaseAuth();
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>(initialScheduleItems);
   const [activeNav, setActiveNav] = useState("Tableau de bord");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [assistantMessage, setAssistantMessage] = useState("");
 
   // Événements associatifs réels extraits directement des emails Zmail INSA
   const [associationEvents, setAssociationEvents] = useState<AssociationEvent[]>(
@@ -274,18 +314,18 @@ export default function DashboardPage() {
   const [detailError, setDetailError] = useState("");
   const [showImages, setShowImages] = useState(false);
 
-  function showToast(msg: string) {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage(null);
     }, 3200);
-  }
+  }, []);
 
   // Récupération des emails
-  function fetchEmails() {
+  const fetchEmails = useCallback(() => {
     setMailLoading(true);
     setMailError("");
-    fetch("/api/emails")
+    authenticatedFetch("/api/emails")
       .then((res) => {
         if (!res.ok) throw new Error("Erreur de connexion au serveur IMAP");
         return res.json();
@@ -300,11 +340,113 @@ export default function DashboardPage() {
       })
       .catch((e) => setMailError(e.message))
       .finally(() => setMailLoading(false));
-  }
+  }, []);
 
   useEffect(() => {
     fetchEmails();
-  }, []);
+  }, [fetchEmails]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadTasks() {
+      try {
+        let response = await authenticatedFetch("/api/tasks");
+        let result: unknown = await response.json();
+        if (!response.ok) {
+          throw new Error(getApiError(result, "Impossible de charger les tâches."));
+        }
+
+        if (
+          isRecord(result) &&
+          result.seedRequired === true
+        ) {
+          response = await authenticatedFetch("/api/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ operation: "bootstrap", tasks: initialTasks }),
+          });
+          result = await response.json();
+          if (!response.ok) {
+            throw new Error(getApiError(result, "Impossible d’initialiser les tâches."));
+          }
+        }
+
+        if (!isRecord(result)) {
+          throw new Error("Les tâches reçues du serveur sont invalides.");
+        }
+        const loadedTasks = result.tasks;
+        if (!Array.isArray(loadedTasks) || !loadedTasks.every(isTaskItem)) {
+          throw new Error("Les tâches reçues du serveur sont invalides.");
+        }
+        if (active) setTasks(loadedTasks);
+      } catch (error) {
+        if (active) {
+          showToast(
+            error instanceof Error
+              ? error.message
+              : "Impossible de charger les tâches."
+          );
+        }
+      }
+    }
+
+    void loadTasks();
+    return () => {
+      active = false;
+    };
+  }, [showToast]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSchedule() {
+      try {
+        let response = await authenticatedFetch("/api/schedule");
+        let result: unknown = await response.json();
+        if (!response.ok) {
+          throw new Error(getApiError(result, "Impossible de charger le planning."));
+        }
+
+        if (isRecord(result) && result.seedRequired === true) {
+          response = await authenticatedFetch("/api/schedule", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              operation: "bootstrap",
+              items: initialScheduleItems,
+            }),
+          });
+          result = await response.json();
+          if (!response.ok) {
+            throw new Error(getApiError(result, "Impossible d’initialiser le planning."));
+          }
+        }
+
+        if (!isRecord(result)) {
+          throw new Error("Le planning reçu du serveur est invalide.");
+        }
+        const loadedItems = result.items;
+        if (!Array.isArray(loadedItems) || !loadedItems.every(isScheduleItem)) {
+          throw new Error("Le planning reçu du serveur est invalide.");
+        }
+        if (active) setScheduleItems(loadedItems);
+      } catch (error) {
+        if (active) {
+          showToast(
+            error instanceof Error
+              ? error.message
+              : "Impossible de charger le planning."
+          );
+        }
+      }
+    }
+
+    void loadSchedule();
+    return () => {
+      active = false;
+    };
+  }, [showToast]);
 
   // Charger le détail de l'email sélectionné dans "Mes emails"
   useEffect(() => {
@@ -317,7 +459,7 @@ export default function DashboardPage() {
     setDetailError("");
     setShowImages(false);
 
-    fetch(`/api/emails/${selectedMailboxEmailId}`)
+    authenticatedFetch(`/api/emails/${selectedMailboxEmailId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);
@@ -337,40 +479,135 @@ export default function DashboardPage() {
   const completed = tasks.filter((task) => task.done).length;
   const pending = tasks.filter((task) => !task.done).length;
 
-  function toggleTask(id: number) {
-    setTasks((current) =>
-      current.map((task) =>
-        task.id === id ? { ...task, done: !task.done } : task
-      )
-    );
+  async function toggleTask(id: number) {
+    const task = tasks.find((item) => item.id === id);
+    if (!task) return;
+    try {
+      const response = await authenticatedFetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patch: { done: !task.done } }),
+      });
+      const result: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(getApiError(result, "La tâche n’a pas pu être mise à jour."));
+      }
+      if (!isRecord(result) || !isTaskItem(result.task)) {
+        throw new Error("La tâche mise à jour reçue du serveur est invalide.");
+      }
+      const updatedTask = result.task;
+      setTasks((current) =>
+        current.map((item) => (item.id === id ? updatedTask : item))
+      );
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "La tâche n’a pas été modifiée.");
+    }
   }
 
-  function deleteTask(id: number, e?: React.MouseEvent) {
+  async function deleteTask(id: number, e?: React.MouseEvent) {
     e?.stopPropagation();
-    setTasks((current) => current.filter((task) => task.id !== id));
-    showToast("Tâche supprimée avec succès.");
+    try {
+      const response = await authenticatedFetch(`/api/tasks/${id}`, {
+        method: "DELETE",
+      });
+      const result: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(getApiError(result, "La tâche n’a pas pu être supprimée."));
+      }
+      setTasks((current) => current.filter((task) => task.id !== id));
+      showToast("Tâche déplacée dans la corbeille.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "La tâche n’a pas été supprimée.");
+    }
   }
 
-  function handleCreateTask(e: React.FormEvent) {
+  async function handleCreateTask(e: React.FormEvent) {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
-    const newTask: TaskItem = {
-      id: Date.now(),
-      title: newTaskTitle.trim(),
-      course: newTaskCourse.trim() || "Personnel",
-      due: newTaskDue.trim() || "À planifier",
-      priority: newTaskPriority,
-      done: false,
-      instructions: newTaskInstructions.trim() || "Aucune consigne particulière spécifiée.",
-      estimatedTime: newTaskTime.trim() || "1h00",
-    };
+    try {
+      const response = await authenticatedFetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: {
+            title: newTaskTitle.trim(),
+            course: newTaskCourse.trim() || "Personnel",
+            due: newTaskDue.trim() || "À planifier",
+            priority: newTaskPriority,
+            instructions:
+              newTaskInstructions.trim() ||
+              "Aucune consigne particulière spécifiée.",
+            estimatedTime: newTaskTime.trim() || "1h00",
+          },
+        }),
+      });
+      const result: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(getApiError(result, "La tâche n’a pas pu être créée."));
+      }
+      if (!isRecord(result) || !isTaskItem(result.task)) {
+        throw new Error("La tâche créée reçue du serveur est invalide.");
+      }
+      const createdTask = result.task;
 
-    setTasks((prev) => [newTask, ...prev]);
-    setIsAddTaskModalOpen(false);
-    setNewTaskTitle("");
-    setNewTaskInstructions("");
-    showToast(`La tâche "${newTask.title}" a été ajoutée !`);
+      setTasks((prev) => [createdTask, ...prev]);
+      setIsAddTaskModalOpen(false);
+      setNewTaskTitle("");
+      setNewTaskInstructions("");
+      showToast(`La tâche "${createdTask.title}" a été ajoutée !`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "La tâche n’a pas été créée.");
+    }
+  }
+
+  function handleAssistantTasksCreated(createdTasks: TaskItem[]) {
+    setTasks((current) => [...createdTasks, ...current]);
+    showToast(
+      createdTasks.length === 1
+        ? `La tâche "${createdTasks[0].title}" a été ajoutée !`
+        : `${createdTasks.length} tâches ont été ajoutées !`
+    );
+  }
+
+  function handleAssistantTasksUpdated(updatedTasks: TaskItem[]) {
+    setTasks((current) => {
+      const currentIds = new Set(current.map((task) => task.id));
+      const restored = updatedTasks.filter((task) => !currentIds.has(task.id));
+      return [
+        ...restored,
+        ...current.map(
+          (task) => updatedTasks.find((item) => item.id === task.id) ?? task
+        ),
+      ];
+    });
+    showToast(
+      updatedTasks.length === 1
+        ? `La tâche "${updatedTasks[0].title}" a été mise à jour ou restaurée.`
+        : `${updatedTasks.length} tâches ont été mises à jour ou restaurées.`
+    );
+  }
+
+  function handleAssistantTaskDeleted(id: number) {
+    setTasks((current) => current.filter((task) => task.id !== id));
+    showToast("Tâche déplacée dans la corbeille.");
+  }
+
+  function handleAssistantScheduleUpdated(item: AssistantScheduleItem) {
+    setScheduleItems((current) =>
+      current.map((existing) => (existing.id === item.id ? item : existing))
+    );
+    showToast(`Le cours « ${item.title} » a été mis à jour dans le planning.`);
+  }
+
+  function handleAssistantScheduleCreated(item: AssistantScheduleItem) {
+    setScheduleItems((current) => [item, ...current]);
+    showToast(`Le cours « ${item.title} » a été ajouté au planning.`);
+  }
+
+  function handleAssistantScheduleCancelled(id: number) {
+    setScheduleItems((current) => current.filter((item) => item.id !== id));
+    showToast("Le cours annulé a été retiré du planning.");
   }
 
   // ==============================================================
@@ -908,7 +1145,7 @@ export default function DashboardPage() {
             </p>
             <button
               onClick={() => {
-                setActiveNav("Tableau de bord");
+                setAssistantOpen(true);
                 setMobileOpen(false);
               }}
               className="mt-4 flex w-full items-center justify-between rounded-lg bg-white px-3 py-2.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
@@ -919,18 +1156,63 @@ export default function DashboardPage() {
 
           <div className="mt-3 flex items-center gap-3 border-t border-slate-100 px-2 pt-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-800">
-              {CURRENT_USER.initials}
+              {(user.email || "U").slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-slate-800">
-                {CURRENT_USER.firstName} {CURRENT_USER.lastName}
+                {user.email}
               </p>
-              <p className="text-xs text-slate-400">{getPromoDisplay()}</p>
+              <p className="text-xs text-slate-400">Compte connecté</p>
             </div>
-            <MoreHorizontal size={19} className="text-slate-400" />
+            <button
+              type="button"
+              onClick={() =>
+                signOut().catch((error: unknown) =>
+                  showToast(
+                    error instanceof Error
+                      ? error.message
+                      : "La déconnexion a échoué."
+                  )
+                )
+              }
+              aria-label="Se déconnecter"
+              title="Se déconnecter"
+              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
       </aside>
+
+      {!assistantOpen && (
+        <button
+          type="button"
+          aria-label="Ouvrir l’assistant Campus"
+          title="Ouvrir l’assistant"
+          onClick={() => setAssistantOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-xl shadow-indigo-300 transition hover:bg-indigo-700"
+          style={{ right: 24, bottom: 24, zIndex: 100 }}
+        >
+          <Sparkles size={21} />
+        </button>
+      )}
+      <AssistantPanel
+        emails={emails}
+        tasks={tasks}
+        isOpen={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        onTasksCreated={handleAssistantTasksCreated}
+        onTasksUpdated={handleAssistantTasksUpdated}
+        onTaskDeleted={handleAssistantTaskDeleted}
+        onScheduleCreated={handleAssistantScheduleCreated}
+        onScheduleUpdated={handleAssistantScheduleUpdated}
+        onScheduleCancelled={handleAssistantScheduleCancelled}
+        onOpenEmail={(id) => {
+          setActiveNav("Mes emails");
+          setSelectedModalEmailId(id);
+        }}
+      />
 
       <main className="min-h-screen lg:pl-64">
         {/* Barre du haut */}
@@ -2527,6 +2809,14 @@ function StatCard({
       </div>
       <p className="mt-2 text-xs text-slate-400">{caption}</p>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <SupabaseAuthGate>
+      <DashboardContent />
+    </SupabaseAuthGate>
   );
 }
 
