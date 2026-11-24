@@ -1,7 +1,7 @@
 "use client";
 
-import {FormEvent, useEffect, useRef, useState} from "react";
-import {useRouter} from "next/navigation";
+import {FormEvent, Suspense, useEffect, useRef, useState} from "react";
+import {useRouter, useSearchParams} from "next/navigation";
 import {
     Bot,
     CalendarDays,
@@ -37,14 +37,16 @@ const navigation = [
     {label: "Assistant IA", icon: Sparkles, href: "/assistant"},
 ];
 
-export default function AssistantPage() {
+function AssistantContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [messages, setMessages] = useState<DisplayMessage[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [mobileOpen, setMobileOpen] = useState(false);
-    const started = useRef(false);
+    const processedMessage = useRef("");
+    const loadingRef = useRef(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -52,20 +54,18 @@ export default function AssistantPage() {
     }, [messages, loading]);
 
     useEffect(() => {
-        if (started.current) return;
-        started.current = true;
-        const initial = new URLSearchParams(window.location.search).get("message");
-        if (initial?.trim()) {
-            void submitMessage(initial.trim(), []);
-        }
-    }, []);
+        const initial = searchParams.get("message")?.trim();
+        if (!initial || processedMessage.current === initial) return;
+        processedMessage.current = initial;
+        void submitMessage(initial, []);
+    }, [searchParams]);
 
     async function submitMessage(
         content: string,
         currentMessages: DisplayMessage[]
     ) {
         const trimmed = content.trim();
-        if (!trimmed || loading) return;
+        if (!trimmed || loadingRef.current) return;
 
         const nextMessages: DisplayMessage[] = [
             ...currentMessages,
@@ -74,6 +74,7 @@ export default function AssistantPage() {
         setMessages(nextMessages);
         setInput("");
         setError("");
+        loadingRef.current = true;
         setLoading(true);
 
         try {
@@ -97,6 +98,7 @@ export default function AssistantPage() {
                     : "L'assistant est temporairement indisponible."
             );
         } finally {
+            loadingRef.current = false;
             setLoading(false);
         }
     }
@@ -319,5 +321,13 @@ export default function AssistantPage() {
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function AssistantPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-slate-50"/>}>
+            <AssistantContent/>
+        </Suspense>
     );
 }
