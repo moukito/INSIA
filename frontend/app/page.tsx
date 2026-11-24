@@ -1,40 +1,41 @@
 "use client";
 
 import {useEffect, useMemo, useState} from "react";
+import {useRouter} from "next/navigation";
 import {
-  AlertTriangle,
-  ArrowUpRight,
-  Bell,
-  BookOpen,
-  Briefcase,
-  Calendar,
-  CalendarDays,
-  CheckCircle2,
-  CheckSquare,
-  ChevronRight,
-  Circle,
-  Clock,
-  Compass,
-  FileText,
-  Filter,
-  GraduationCap,
-  Inbox,
-  LayoutDashboard,
-  Mail,
-  MapPin,
-  Maximize2,
-  Menu,
-  MoreHorizontal,
-  Paperclip,
-  Plus,
-  RefreshCw,
-  Reply,
-  Search,
-  Send,
-  Settings,
-  Sparkles,
-  Users,
-  X,
+    AlertTriangle,
+    ArrowUpRight,
+    Bell,
+    BookOpen,
+    Briefcase,
+    Calendar,
+    CalendarDays,
+    CheckCircle2,
+    CheckSquare,
+    ChevronRight,
+    Circle,
+    Clock,
+    Compass,
+    FileText,
+    Filter,
+    GraduationCap,
+    Inbox,
+    LayoutDashboard,
+    Mail,
+    MapPin,
+    Maximize2,
+    Menu,
+    MoreHorizontal,
+    Paperclip,
+    Plus,
+    RefreshCw,
+    Reply,
+    Search,
+    Send,
+    Settings,
+    Sparkles,
+    Users,
+    X,
 } from "lucide-react";
 import {EmailCategory} from "@/lib/email-classifier";
 import {EmailCategoryBadge} from "@/components/EmailCategoryBadge";
@@ -134,6 +135,7 @@ function formatMailDate(dateStr: string | null) {
 }
 
 export default function DashboardPage() {
+    const router = useRouter();
     const [tasks, setTasks] = useState(initialTasks);
     const [activeNav, setActiveNav] = useState("Tableau de bord");
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -267,11 +269,9 @@ export default function DashboardPage() {
 
     function sendMessage() {
         if (!assistantMessage.trim()) return;
-        window.alert(
-            "L'assistant IA sera connecté au backend dans une prochaine étape. Ton message : " +
-            assistantMessage
-        );
+        const message = assistantMessage.trim();
         setAssistantMessage("");
+        router.push(`/assistant?message=${encodeURIComponent(message)}`);
     }
 
     // Marquer comme lu localement
@@ -412,8 +412,8 @@ export default function DashboardPage() {
                         </p>
                         <button
                             onClick={() => {
-                                setActiveNav("Assistant IA");
                                 setMobileOpen(false);
+                                router.push("/assistant");
                             }}
                             className="mt-4 flex w-full items-center justify-between rounded-lg bg-white px-3 py-2.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
                         >
