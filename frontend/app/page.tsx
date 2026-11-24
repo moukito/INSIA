@@ -198,6 +198,21 @@ export default function DashboardPage() {
     }, []);
 
     useEffect(() => {
+        const view = new URLSearchParams(window.location.search).get("view");
+        const viewLabels: Record<string, string> = {
+            planning: "Mon planning",
+            tasks: "Mes tâches",
+            emails: "Mes emails",
+            orientation: "Orientation",
+            associations: "Associations",
+            settings: "Paramètres",
+        };
+        if (view && viewLabels[view]) {
+            setActiveNav(viewLabels[view]);
+        }
+    }, []);
+
+    useEffect(() => {
         const start = new Date();
         start.setHours(0, 0, 0, 0);
         const end = new Date(start);
